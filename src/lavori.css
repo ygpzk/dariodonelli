@@ -116,7 +116,7 @@
   bottom: 0;
   z-index: 3;
   height: 2px;
-  background: rgb(250 249 246 / 0.28);
+  background: rgb(255 255 255 / 0.28);
 }
 
 .hero__meter-fill {
@@ -156,7 +156,7 @@
   display: block;
   width: 100%;
   height: 18px;
-  background: linear-gradient(rgb(250 249 246 / 0.5), rgb(250 249 246 / 0.5)) center / 100% 1px no-repeat;
+  background: linear-gradient(rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.5)) center / 100% 1px no-repeat;
   transition: background 0.3s ease;
 }
 
@@ -502,61 +502,6 @@
 .archive__reset:hover {
   color: var(--ink);
   border-color: var(--ink);
-}
-
-/* La miniatura che segue il mouse, solo con puntatore fine. */
-.archive__preview {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 6;
-  width: 19rem;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  will-change: transform;
-}
-
-.archive.is-previewing .archive__preview {
-  opacity: 1;
-}
-
-.archive__preview-card {
-  overflow: hidden;
-  translate: -50% -112%;
-  background: var(--paper);
-  border: 1px solid var(--line-strong);
-  box-shadow: 0 30px 60px -40px rgb(27 26 23 / 0.55);
-}
-
-.archive__preview-card img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  background: var(--surface);
-}
-
-.archive__preview-card figcaption {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.55rem 0.7rem;
-  font-family: var(--font-display);
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.25;
-  border-top: 1px solid var(--line);
-}
-
-.archive__preview-card .label {
-  font-family: var(--font-sans);
-  font-size: 0.5625rem;
-}
-
-@media (max-width: 1000px), (hover: none) {
-  .archive__preview {
-    display: none;
-  }
 }
 
 /* Le righe dell'elenco: anno, miniatura, titolo e sottotitolo, categoria,

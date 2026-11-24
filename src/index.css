@@ -1,10 +1,10 @@
 /* ---------------------------------------------------------------------------
    Fondamenta
    Token di design e regole di base. Lo stile del sito è volutamente
-   minimale: carta calda, inchiostro quasi nero, filetti sottili e due
-   famiglie tipografiche — Inter Tight per i titoli, Fraunces per gli
-   attacchi, Inter per il resto. Nessun accento cromatico: il colore lo
-   portano le fotografie, quando si posa il puntatore.
+   minimale: carta bianca, inchiostro nero, filetti sottili e tre voci
+   tipografiche — Inter Tight per i titoli, Fraunces per gli attacchi,
+   Inter per il resto (in sviluppo si provano altri preset). Nessun accento
+   cromatico: il colore lo portano le fotografie, quando si posa il puntatore.
    --------------------------------------------------------------------------- */
 
 /* --- Font auto-ospitati ----------------------------------------------------
@@ -77,18 +77,150 @@
     U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* --- Preset alternativi -----------------------------------------------------
+   Caricati solo quando il preset li usa: il browser scarica il file alla
+   prima richiesta. Servono allo switcher tipografico in sviluppo. */
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/archivo-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/newsreader-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/spacegrotesk-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/instrumentserif-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/bricolage-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/spectral-300-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/spectral-400-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/publicsans-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/manrope-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/lora-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibmplexsans-400-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibmplexsans-500-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibmplexsans-600-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/ibmplexsans-700-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Serif';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/ibmplexserif-300-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibmplexserif-400-latin.woff2') format('woff2');
+}
+
 :root {
-  /* Colori: nessun accento cromatico, solo carta e inchiostro. */
-  --paper: #faf9f6;
-  --surface: #f1efe9;
-  --surface-deep: #eae7df;
-  --ink: #1b1a17;
-  --ink-soft: #4e4b45;
+  /* Colori: nessun accento cromatico, solo bianco e nero. */
+  --paper: #ffffff;
+  --surface: #f6f6f6;
+  --surface-deep: #ededed;
+  --ink: #000000;
+  --ink-soft: #333333;
   /* Abbastanza scuro da superare il contrasto AA (4,5:1) anche su
      --surface: il grigio è usato per etichette e note a corpo piccolo. */
-  --muted: #6e6960;
-  --line: #e3dfd7;
-  --line-strong: #c9c4ba;
+  --muted: #666666;
+  --line: #e2e2e2;
+  --line-strong: #c2c2c2;
 
   /* Tre voci: il display stretto e pesante per i titoli, il serif leggero
      per gli attacchi e le righe d'accento, il sans per il testo. */
@@ -104,6 +236,40 @@
   --space-section: clamp(5.5rem, 11vw, 9.5rem);
 
   --header-h: 68px;
+}
+
+/* --- Preset tipografici ------------------------------------------------------
+   Lo switcher di sviluppo scrive data-font sull'elemento html: ogni preset
+   cambia le tre voci (titoli, attacchi, testo) senza toccare il resto. */
+
+html[data-font='archivio'] {
+  --font-display: 'Archivo', system-ui, sans-serif;
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-sans: 'Archivo', system-ui, sans-serif;
+}
+
+html[data-font='tecnico'] {
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+html[data-font='editoriale'] {
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-serif: 'Spectral', Georgia, serif;
+  --font-sans: 'Public Sans', system-ui, sans-serif;
+}
+
+html[data-font='umanista'] {
+  --font-display: 'Manrope', system-ui, sans-serif;
+  --font-serif: 'Lora', Georgia, serif;
+  --font-sans: 'Manrope', system-ui, sans-serif;
+}
+
+html[data-font='plex'] {
+  --font-display: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-serif: 'IBM Plex Serif', Georgia, serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
 }
 
 *,

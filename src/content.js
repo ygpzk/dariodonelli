@@ -46,10 +46,10 @@ export const studio = {
 
 /**
  * Sorgente del riquadro cartografico dei contatti: Google Maps, come
- * chiesto dallo studio. Non viene caricato all'apertura della pagina: il
- * riquadro mostra prima un segnaposto e la mappa arriva solo su richiesta,
- * così nessun servizio terzo vede l'indirizzo IP di chi legge e la pagina
- * resta leggera. Il CSS la vira in bianco e nero.
+ * chiesto dallo studio. L'iframe sta già nella pagina e si carica subito,
+ * come un'immagine: nessun segnaposto e nessun testo sopra. Il servizio può
+ * quindi installare i suoi cookie all'apertura; il CSS vira la mappa in
+ * bianco e nero.
  */
 export const mapEmbedSrc = (() => {
   const { lat, lng } = studio.geo

@@ -1,69 +1,27 @@
-import Lenis from 'lenis'
 import { useEffect } from 'react'
 
 /* ---------------------------------------------------------------------------
    Movimento
-   Lo scorrimento morbido della pagina e gli aiuti che fanno muovere il sito
-   mentre si scorre. Il resto (come si muove) è negli stili di .reveal
-   in App.css.
+   Gli aiuti che fanno muovere il sito mentre si scorre. Lo scorrimento è
+   quello nativo del browser: nessuna inerzia aggiunta. Il resto (come si
+   muove) è negli stili di .reveal in App.css.
    --------------------------------------------------------------------------- */
-
-/** Un'unica istanza per la pagina; resta null con il movimento ridotto. */
-let lenis = null
-
-/** Ferma e riavvia lo scorrimento: serve al menu a tutto schermo. */
-export function stopSmoothScroll() {
-  lenis?.stop()
-}
-
-export function startSmoothScroll() {
-  lenis?.start()
-}
 
 export function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-/** Parte piano, accelera, si posa: per i salti lunghi da un'ancora all'altra. */
-const easeInOutQuart = (t) => (t < 0.5 ? 8 * t ** 4 : 1 - (-2 * t + 2) ** 4 / 2)
-
 /** Lo stesso scarto dell'header che usa scroll-padding-top in index.css. */
 const HEADER_OFFSET = 88
 
 /**
- * Scorrimento con inerzia (Lenis). La rotella non salta più a scatti di
- * cento pixel: la pagina scivola e si ferma morbida, e con lei tutte le
- * animazioni legate allo scroll. Il tocco resta nativo.
- */
-export function useSmoothScroll() {
-  useEffect(() => {
-    if (prefersReducedMotion()) return
-    const instance = new Lenis({ lerp: 0.09, autoRaf: true })
-    lenis = instance
-    return () => {
-      instance.destroy()
-      if (lenis === instance) lenis = null
-    }
-  }, [])
-}
-
-/**
  * Porta la pagina a un punto: l'id di una sezione, un elemento o una quota
- * in pixel. La durata cresce con la distanza, così un salto breve non è
- * lento e uno lungo non è un lampo.
+ * in pixel. Con `immediate` il salto è istantaneo (cambio pagina, arrivo da
+ * un indirizzo con ancora); altrimenti il browser scorre da solo.
  */
 export function scrollToTarget(target, { immediate = false } = {}) {
   const el = typeof target === 'string' ? document.getElementById(target) : target
-  // La pagina può essere appena cambiata: Lenis misura l'altezza del
-  // documento al momento del salto, altrimenti si ferma al limite vecchio.
-  if (lenis) lenis.resize()
   const top = typeof el === 'number' ? el : el ? el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET : 0
-
-  if (lenis) {
-    const duration = Math.min(2.2, Math.max(0.9, Math.abs(top - window.scrollY) / 2400))
-    lenis.scrollTo(Math.max(0, top), { immediate, duration, easing: easeInOutQuart, force: true })
-    return
-  }
   window.scrollTo({ top, behavior: immediate || prefersReducedMotion() ? 'auto' : 'smooth' })
 }
 

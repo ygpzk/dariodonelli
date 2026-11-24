@@ -1,7 +1,7 @@
 import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './lavori.css'
-import { prefersReducedMotion, scrollToTarget, startSmoothScroll, stopSmoothScroll, useReveal, useSmoothScroll } from './motion.js'
+import { prefersReducedMotion, scrollToTarget, useReveal } from './motion.js'
 import SheetViewer from './viewer/SheetViewer.jsx'
 import {
   ambiti,
@@ -24,23 +24,25 @@ import { resolve, legacyPaths } from './routes.js'
 /* ---------------------------------------------------------------------------
    Marchio
    Il logo della targa ridisegnato in vettoriale: una "D" a doppio profilo,
-   in nero, sovrapposta alla sua immagine speculare in grigio. Vive nella
-   testata della pagina, non nell'header: lì il nome basta.
+   in nero, con la sua immagine speculare in grigio spostata di poco a
+   destra, come sulla targa. Geometria esatta: il corpo è una
+   semicirconferenza di raggio 400, il controprofilo di 320.
+   Vive nella testata della pagina, non nell'header: lì il nome basta.
    --------------------------------------------------------------------------- */
 
-const LOGO_OUTER = 'M64 64H520A456 456 0 0 1 520 976H64Z'
-const LOGO_INNER = 'M164 164H520A356 356 0 0 1 520 876H164Z'
+const LOGO_D = 'M120 120H520A400 400 0 0 1 520 920H120Z'
+const LOGO_D_COUNTER = 'M200 200H520A320 320 0 0 1 520 840H200Z'
 
 function Logo({ className = '', ...props }) {
   return (
     <svg viewBox="0 0 1040 1040" fill="none" aria-hidden="true" className={`logo ${className}`} {...props}>
-      <g className="logo__ghost" stroke="#b9b5ae" strokeWidth="48" transform="matrix(-1 0 0 1 1040 0)">
-        <path d={LOGO_OUTER} />
-        <path d={LOGO_INNER} />
+      <g className="logo__ghost" stroke="#b5b5b5" strokeWidth="22" transform="matrix(-1 0 0 1 1080 0)">
+        <path d={LOGO_D} />
+        <path d={LOGO_D_COUNTER} />
       </g>
-      <g className="logo__ink" stroke="currentColor" strokeWidth="48">
-        <path className="logo__line" pathLength="1" d={LOGO_OUTER} />
-        <path className="logo__line logo__line--late" pathLength="1" d={LOGO_INNER} />
+      <g stroke="currentColor" strokeWidth="40" strokeLinejoin="miter">
+        <path className="logo__line" pathLength="1" d={LOGO_D} />
+        <path className="logo__line logo__line--late" pathLength="1" d={LOGO_D_COUNTER} />
       </g>
     </svg>
   )
@@ -312,7 +314,6 @@ function MobileMenu({ open, onClose }) {
   useEffect(() => {
     if (!open) return
     lastFocused.current = document.activeElement
-    stopSmoothScroll()
     document.documentElement.classList.add('is-locked')
     const onKey = (event) => {
       if (event.key === 'Escape') {
@@ -337,7 +338,6 @@ function MobileMenu({ open, onClose }) {
     return () => {
       window.removeEventListener('keydown', onKey)
       document.documentElement.classList.remove('is-locked')
-      startSmoothScroll()
       lastFocused.current?.focus?.({ preventScroll: true })
     }
   }, [open, onClose])
@@ -349,7 +349,6 @@ function MobileMenu({ open, onClose }) {
     if (path === '/') {
       // Il menu si chiude e sblocca la pagina; lo scorrimento parte dopo
       // che il blocco è stato tolto, altrimenti resterebbe a zero.
-      startSmoothScroll()
       document.documentElement.classList.remove('is-locked')
       requestAnimationFrame(() => requestAnimationFrame(() => scrollToSection(id)))
     } else {
@@ -358,7 +357,7 @@ function MobileMenu({ open, onClose }) {
   }
 
   return (
-    <div className={`menu${open ? ' is-open' : ''}`} id="menu-sito" role="dialog" aria-modal="true" aria-label="Menu del sito" aria-hidden={!open} inert={!open} data-lenis-prevent ref={menuRef}>
+    <div className={`menu${open ? ' is-open' : ''}`} id="menu-sito" role="dialog" aria-modal="true" aria-label="Menu del sito" aria-hidden={!open} inert={!open} ref={menuRef}>
       <div className="menu__inner">
         <div className="menu__top">
           <span className="label">Indice</span>
@@ -429,7 +428,6 @@ function Header() {
               e.preventDefault()
               close()
               if (path !== '/') return navigate('/')
-              startSmoothScroll()
               document.documentElement.classList.remove('is-locked')
               requestAnimationFrame(() =>
                 requestAnimationFrame(() => {
@@ -913,32 +911,14 @@ function Archive() {
     return () => cancelAnimationFrame(frame)
   }, [filter])
 
-  /* La miniatura che segue il mouse: una sola immagine, spostata scrivendo
-     la trasformazione direttamente nello stile. Compare solo con un mouse
-     vero e con il movimento attivo. */
-  const previewRef = useRef(null)
-  const previewBox = useRef(null)
-  const [preview, setPreview] = useState(null)
-
   const choose = (id) => {
     const next = filter === id ? 'all' : id
     setFilter(next)
     window.history.replaceState(window.history.state, '', filterUrl(next))
   }
 
-  const onRowEnter = (work) => {
-    if (prefersReducedMotion()) return
-    setPreview({ src: work.cover.mini, title: work.title, meta: `${work.categoryLabel} · ${work.year}` })
-  }
-
-  const onPointerMove = (event) => {
-    if (event.pointerType !== 'mouse' || !previewRef.current || !previewBox.current) return
-    const r = previewBox.current.getBoundingClientRect()
-    previewRef.current.style.transform = `translate3d(${event.clientX - r.left}px, ${event.clientY - r.top}px, 0)`
-  }
-
   return (
-    <div className={`archive${preview ? ' is-previewing' : ''}`} ref={previewBox}>
+    <div className="archive">
       <dl className="categories reveal">
         {categories.map((c) => (
           <div className="categories__item" key={c.id}>
@@ -977,21 +957,9 @@ function Archive() {
         </span>
       </div>
 
-      <div className="archive__preview" ref={previewRef} aria-hidden="true">
-        {preview && (
-          <figure className="archive__preview-card">
-            <img src={preview.src} alt="" width="320" height="240" loading="lazy" decoding="async" />
-            <figcaption>
-              <span>{preview.title}</span>
-              <span className="label">{preview.meta}</span>
-            </figcaption>
-          </figure>
-        )}
-      </div>
-
-      <ol className="archive-list" role="list" ref={listRef} onPointerMove={onPointerMove} onPointerLeave={() => setPreview(null)}>
+      <ol className="archive-list" role="list" ref={listRef}>
         {list.map((w, i) => (
-          <li key={w.id} id={`lavoro-${w.id}`} className="archive-row reveal" style={{ '--i': i % 6 }} onPointerEnter={() => onRowEnter(w)}>
+          <li key={w.id} id={`lavoro-${w.id}`} className="archive-row reveal" style={{ '--i': i % 6 }}>
             <RouteLink to={w.path} className="archive-row__link">
               <span className="archive-row__year">{w.year}</span>
               <span className="archive-row__figure">
@@ -1260,31 +1228,15 @@ function BimSection() {
    --------------------------------------------------------------------------- */
 
 function MapCard() {
-  const [loaded, setLoaded] = useState(false)
-
   return (
-    <div className={`map${loaded ? ' is-loaded' : ''}`}>
-      {loaded ? (
-        <iframe
-          className="map__frame"
-          src={mapEmbedSrc}
-          title="Mappa della posizione dello studio a Rivalta sul Mincio"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
-      ) : (
-        <button type="button" className="map__placeholder" onClick={() => setLoaded(true)} aria-label="Mostra la mappa di Google Maps">
-          <span className="map__grid" aria-hidden="true" />
-          <span className="map__pin" aria-hidden="true">
-            <span className="map__pin-dot" />
-          </span>
-          <span className="map__hint">
-            <span className="label">Mappa</span>
-            <span className="map__hint-title">Mostra la mappa</span>
-            <span className="map__hint-note">Google Maps si carica solo ora, su richiesta</span>
-          </span>
-        </button>
-      )}
+    <div className="map">
+      <iframe
+        className="map__frame"
+        src={mapEmbedSrc}
+        title="Mappa della posizione dello studio a Rivalta sul Mincio"
+        loading="eager"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
     </div>
   )
 }
@@ -1345,7 +1297,6 @@ function ContactSection() {
               <TextLink href={studio.mapsHref} target="_blank" rel="noopener noreferrer">
                 Itinerario su Google Maps
               </TextLink>
-              <span className="map__note">La mappa si carica da Google solo su richiesta.</span>
             </p>
           </div>
         </div>
@@ -1365,21 +1316,22 @@ function Footer() {
   return (
     <footer className="footer">
       <div className="container">
-        {/* Quattro colonne uguali, ognuna aperta dalla sua etichetta: le
-            righe partono tutte alla stessa altezza, e la riga in fondo
-            usa la stessa griglia, così le voci cadono sulle colonne. */}
-        <div className="footer__grid">
-          <div className="footer__col">
-            <h2 className="label">Studio</h2>
-            <ul role="list">
-              <li className="footer__name">{studio.name}</li>
-              <li>{studio.addressLines[0]}</li>
-              <li>{studio.addressLines[1]}</li>
-            </ul>
+        <div className="footer__main">
+          <div className="footer__brand">
+            <span className="label">Studio</span>
+            <p className="footer__name">{studio.name}</p>
+            <p className="footer__address">
+              {studio.addressLines[0]}
+              <br />
+              {studio.addressLines[1]}
+            </p>
+            <a className="footer__maps" href={studio.mapsHref} target="_blank" rel="noopener noreferrer">
+              Itinerario <span aria-hidden="true">↗</span>
+            </a>
           </div>
 
-          <div className="footer__col">
-            <h2 className="label">Recapiti</h2>
+          <div className="footer__block">
+            <span className="label">Recapiti</span>
             <ul role="list">
               <li>
                 <a href={studio.phoneHref}>{studio.phoneDisplay}</a>
@@ -1391,39 +1343,11 @@ function Footer() {
                 <MailLink user={studio.pecUser} domain={studio.pecDomain} className="footer__break" label="Scrivi alla PEC dello studio" />
                 <span className="footer__kind">PEC</span>
               </li>
-              <li>
-                <a href={studio.mapsHref} target="_blank" rel="noopener noreferrer">
-                  Itinerario
-                </a>
-              </li>
             </ul>
           </div>
 
-          <div className="footer__col">
-            <h2 className="label">Iscrizione</h2>
-            <ul role="list">
-              <li>Ordine degli Ingegneri di Mantova</li>
-              <li>n. 1495 · 24 maggio 2010</li>
-              <li>Settore a) civile e ambientale</li>
-            </ul>
-            <dl className="footer__fiscal">
-              <div>
-                <dt>P. IVA</dt>
-                <dd>{studio.vat}</dd>
-              </div>
-              <div>
-                <dt>C.F.</dt>
-                <dd>{studio.taxCode}</dd>
-              </div>
-              <div>
-                <dt>SDI</dt>
-                <dd>{studio.sdi}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="footer__col">
-            <h2 className="label">Sezioni</h2>
+          <nav className="footer__block" aria-label="Sezioni del sito">
+            <span className="label">Sezioni</span>
             <ul role="list">
               {sections.map((item) => (
                 <li key={item.id}>
@@ -1433,19 +1357,26 @@ function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
+        </div>
+
+        <div className="footer__legal">
+          <p>Ordine degli Ingegneri di Mantova · n. 1495 · 24 maggio 2010 · Settore a) civile e ambientale</p>
+          <p>
+            P. IVA {studio.vat} · C.F. {studio.taxCode} · SDI {studio.sdi}
+          </p>
         </div>
 
         <div className="footer__meta">
           <span>
-            © {year} <span className="footer__meta-name">{studio.name}</span>
+            © {year} {studio.name}
           </span>
-          <span className="footer__meta-wide">Nessun cookie prima della mappa. La mappa si carica solo su richiesta.</span>
-          <span>
-            Sito{' '}
-            <a href="https://www.albertopecchini.it" target="_blank" rel="noopener noreferrer">
-              Alberto Pecchini
-            </a>
+          <span className="footer__credit">
+            Designed by{' '}
+            <a href="https://www.albertopecchini.it" target="_blank" rel="noopener noreferrer" title="Alberto Pecchini">
+              Alberto
+            </a>{' '}
+            in Rivalta sul Mincio
           </span>
           <button type="button" className="footer__top" onClick={backToTop}>
             Torna su <span aria-hidden="true">↑</span>
@@ -1618,6 +1549,75 @@ function MissingPage() {
 }
 
 /* ---------------------------------------------------------------------------
+   Switcher tipografico (solo sviluppo)
+   Un pannello in basso a destra per provare i preset dei caratteri. Non
+   entra nella build di produzione: `import.meta.env.DEV` è falso lì, e il
+   componente viene tolto dal bundle.
+   --------------------------------------------------------------------------- */
+
+const FONT_PRESETS = [
+  { id: 'studio', label: 'Studio', display: 'Inter Tight', serif: 'Fraunces', sans: 'Inter' },
+  { id: 'archivio', label: 'Archivio', display: 'Archivo', serif: 'Newsreader', sans: 'Archivo' },
+  { id: 'tecnico', label: 'Tecnico', display: 'Space Grotesk', serif: 'Instrument Serif', sans: 'Inter' },
+  { id: 'editoriale', label: 'Editoriale', display: 'Bricolage Grotesque', serif: 'Spectral', sans: 'Public Sans' },
+  { id: 'umanista', label: 'Umanista', display: 'Manrope', serif: 'Lora', sans: 'Manrope' },
+  { id: 'plex', label: 'Plex', display: 'IBM Plex Sans', serif: 'IBM Plex Serif', sans: 'IBM Plex Sans' },
+]
+
+function FontSwitcher() {
+  const [font, setFont] = useState(() => {
+    try {
+      return localStorage.getItem('font-preset') || 'studio'
+    } catch {
+      return 'studio'
+    }
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.font = font
+    try {
+      localStorage.setItem('font-preset', font)
+    } catch {
+      /* niente: la scelta vale solo per questa visita */
+    }
+  }, [font])
+
+  const current = FONT_PRESETS.find((preset) => preset.id === font) || FONT_PRESETS[0]
+
+  return (
+    <details className="font-switcher">
+      <summary className="font-switcher__toggle">
+        <span className="font-switcher__sample" aria-hidden="true">
+          Aa
+        </span>
+        <span>Caratteri · {current.label}</span>
+      </summary>
+      <div className="font-switcher__panel">
+        <p className="font-switcher__title">Solo in locale. La scelta resta in questo browser.</p>
+        <div className="font-switcher__list" role="group" aria-label="Preset tipografici">
+          {FONT_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className={`font-switcher__item${preset.id === font ? ' is-active' : ''}`}
+              aria-pressed={preset.id === font}
+              onClick={() => setFont(preset.id)}
+            >
+              <span className="font-switcher__name" style={{ fontFamily: `'${preset.display}', system-ui, sans-serif` }}>
+                {preset.label}
+              </span>
+              <span className="font-switcher__meta">
+                {preset.display} · {preset.serif} · {preset.sans}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </details>
+  )
+}
+
+/* ---------------------------------------------------------------------------
    Composizione
    --------------------------------------------------------------------------- */
 
@@ -1643,7 +1643,6 @@ function Layout({ url }) {
   const pendingScroll = useRef(null)
   const page = useMemo(() => resolve(path), [path])
 
-  useSmoothScroll()
   useReveal(path)
 
   const navigate = useCallback((to, hash = null, { search = '' } = {}) => {
@@ -1733,6 +1732,8 @@ function Layout({ url }) {
       </main>
 
       <Footer />
+
+      {import.meta.env.DEV && <FontSwitcher />}
     </RouterContext.Provider>
   )
 }

@@ -1,14 +1,15 @@
 # Sito — Ing. Dario Donelli
 
 Sito dello studio tecnico dell'Ing. Dario Donelli, Rivalta sul Mincio (MN).
-React + Vite, impostazione minimale ed editoriale, sempre in bianco e nero:
-carta calda, inchiostro, filetti sottili. Tre voci tipografiche: Inter Tight
-pesante e stretto per i titoli, Fraunces leggero per gli attacchi, Inter per
-il testo. Nessuna icona e nessun pulsante: le azioni sono collegamenti
-testuali. I titoli salgono parola per parola da una maschera, le immagini si
-scoprono dal basso, e la testata resta in vista con il filetto di avanzamento;
-con il movimento ridotto è
-tutto fermo (vedi la coda di `src/index.css`).
+React + Vite, impostazione minimale ed editoriale, solo bianco e nero:
+carta bianca, inchiostro, filetti sottili. Tre voci tipografiche di base: Inter
+Tight pesante e stretto per i titoli, Fraunces leggero per gli attacchi, Inter
+per il testo (in sviluppo si possono provare altri preset, vedi «Caratteri»).
+Le azioni sono collegamenti testuali; restano il menu a tutto schermo e il
+ritorno in cima. I titoli salgono parola per parola da una maschera, le immagini
+si scoprono dal basso, e la testata resta in vista con il filetto di
+avanzamento; con il movimento ridotto è tutto fermo (vedi la coda di
+`src/index.css`).
 
 La prima schermata dice tutto: il nome, il marchio, le due righe della targa e
 il carosello dei lavori in evidenza, con l'indice delle sezioni in una riga.
@@ -45,7 +46,8 @@ npm run lavori -- <cartella> [--contact <cartella>]   # rigenera i materiali dei
   entrati nella scheda; l'header ha il menu a tutto schermo sotto i 1020 px
 - `src/App.css`, `src/lavori.css` — stili dei componenti; il secondo copre
   carosello, archivio e schede dei lavori
-- `src/motion.js` — scorrimento morbido (Lenis) e rivelazioni allo scroll
+- `src/motion.js` — rivelazioni allo scroll e salti alle ancore; lo
+  scorrimento è quello nativo del browser, senza inerzia aggiunta
 - `src/viewer/` — visualizzatore di PDF, DWG e immagini (solo consultazione:
   niente barra degli strumenti, niente scaricamento). Sopra il piano, a tutta
   larghezza, la striscia con tutte le miniature (come la timeline di un
@@ -55,7 +57,10 @@ npm run lavori -- <cartella> [--contact <cartella>]   # rigenera i materiali dei
   esterno perché la Content Security Policy non ammetta script in linea
 - `public/lavori/<id>/` — i file pubblicati di ogni lavoro (vedi sotto)
 - `public/images/` — la targa e la sede (jpg/png + webp)
-- `public/fonts/` — Inter Tight, Fraunces e Inter auto-ospitati (woff2 variabili)
+- `public/fonts/` — i font auto-ospitati: Inter Tight, Fraunces e Inter, più i
+  preset alternativi (Archivo, Newsreader, Space Grotesk, Instrument Serif,
+  Bricolage Grotesque, Spectral, Public Sans, Manrope, Lora, IBM Plex Sans e
+  Serif)
 - `scripts/` — lo script che prepara i materiali dei lavori; le sue due
   tabelle (`lavori-sources.json`, `lavori-fixes.json`) restano solo in locale
 - `originali/` — materiali sorgente: l'originale della foto della sede; in
@@ -160,6 +165,28 @@ se supera 12 punti, in ordine di punteggio. Fa eccezione il lavoro segnato
 `apertura`: lo sceglie lo studio ed è sempre il primo (oggi la Casa in via
 Tezzone). Un lavoro nuovo ben documentato entra da solo.
 
+## Caratteri
+
+Il sito nasce con Inter Tight (titoli), Fraunces (attacchi) e Inter (testo).
+Per scegliere un'alternativa senza toccare il progetto, in sviluppo compare in
+basso a destra il pannello «Caratteri» (`FontSwitcher` in `src/App.jsx`): sei
+preset, ognuno con le sue tre voci, applicati scrivendo `data-font` su `<html>`
+e ricordati in `localStorage`.
+
+| Preset | Titoli | Attacchi | Testo |
+| --- | --- | --- | --- |
+| Studio | Inter Tight | Fraunces | Inter |
+| Archivio | Archivo | Newsreader | Archivo |
+| Tecnico | Space Grotesk | Instrument Serif | Inter |
+| Editoriale | Bricolage Grotesque | Spectral | Public Sans |
+| Umanista | Manrope | Lora | Manrope |
+| Plex | IBM Plex Sans | IBM Plex Serif | IBM Plex Sans |
+
+I preset sono definiti in `src/index.css` (`html[data-font=...]`), i file
+stanno in `public/fonts`. Il pannello non entra nella build: `import.meta.env.DEV`
+è falso in produzione. Per rendere stabile una scelta, si copiano le tre
+famiglie del preset nelle variabili `--font-*` di `:root`.
+
 ## Prerender e indirizzi
 
 Il sito viene prerenderizzato in fase di build (`plugins/prerender.js`): la
@@ -189,13 +216,13 @@ Gli script sono file esterni (anche `/js.js`), quindi la policy può restare
 stretta; `style-src` ammette solo gli stili in linea, che servono alle
 variabili CSS impostate da React.
 
-La mappa di Google non viene caricata all'apertura: il riquadro è un
-segnaposto e il servizio parte solo su clic. Finché non si chiede la mappa il
-sito non installa cookie; dopo il clic valgono le condizioni di Google. Non ci
-sono analytics né font di terze parti. Gli indirizzi email sono composti nel
-browser a pezzi (il sorgente non contiene la stringa intera) e il link
-`mailto` viene creato dopo l'idratazione. Le immagini dell'archivio sono
-pubblicate senza metadati e con le zone sensibili oscurate (vedi sopra).
+La mappa di Google è caricata subito, come un'immagine: nessun segnaposto e
+nessun testo sopra. Il servizio può quindi installare i suoi cookie
+all'apertura della pagina; non ci sono analytics né font di terze parti. Gli
+indirizzi email sono composti nel browser a pezzi (il sorgente non contiene la
+stringa intera) e il link `mailto` viene creato dopo l'idratazione. Le immagini
+dell'archivio sono pubblicate senza metadati e con le zone sensibili oscurate
+(vedi sopra).
 
 L’indirizzo pubblico è `https://dariodonelli.com`, in `siteUrl`
 (`src/content.js`): il valore passa a `index.html` tramite Vite, e il prerender
