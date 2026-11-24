@@ -23,27 +23,18 @@ import { resolve, legacyPaths } from './routes.js'
 
 /* ---------------------------------------------------------------------------
    Marchio
-   Il logo della targa ridisegnato in vettoriale: una "D" a doppio profilo,
-   in nero, con la sua immagine speculare in grigio spostata di poco a
-   destra, come sulla targa. Geometria esatta: il corpo è una
-   semicirconferenza di raggio 400, il controprofilo di 320.
+   La "D" della targa ridisegnata in vettoriale: una sola linea continua e
+   chiusa, con l'angolo retto a sinistra e la curva a destra. Niente ombre,
+   niente doppio profilo: il segno resta leggibile a ogni misura.
    Vive nella testata della pagina, non nell'header: lì il nome basta.
    --------------------------------------------------------------------------- */
 
 const LOGO_D = 'M120 120H520A400 400 0 0 1 520 920H120Z'
-const LOGO_D_COUNTER = 'M200 200H520A320 320 0 0 1 520 840H200Z'
 
 function Logo({ className = '', ...props }) {
   return (
     <svg viewBox="0 0 1040 1040" fill="none" aria-hidden="true" className={`logo ${className}`} {...props}>
-      <g className="logo__ghost" stroke="#b5b5b5" strokeWidth="22" transform="matrix(-1 0 0 1 1080 0)">
-        <path d={LOGO_D} />
-        <path d={LOGO_D_COUNTER} />
-      </g>
-      <g stroke="currentColor" strokeWidth="40" strokeLinejoin="miter">
-        <path className="logo__line" pathLength="1" d={LOGO_D} />
-        <path className="logo__line logo__line--late" pathLength="1" d={LOGO_D_COUNTER} />
-      </g>
+      <path d={LOGO_D} stroke="currentColor" strokeWidth="56" strokeLinejoin="miter" />
     </svg>
   )
 }
