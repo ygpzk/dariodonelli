@@ -11,6 +11,15 @@ import { useEffect } from 'react'
 /** Un'unica istanza per la pagina; resta null con il movimento ridotto. */
 let lenis = null
 
+/** Ferma e riavvia lo scorrimento: serve al menu a tutto schermo. */
+export function stopSmoothScroll() {
+  lenis?.stop()
+}
+
+export function startSmoothScroll() {
+  lenis?.start()
+}
+
 export function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
@@ -45,6 +54,9 @@ export function useSmoothScroll() {
  */
 export function scrollToTarget(target, { immediate = false } = {}) {
   const el = typeof target === 'string' ? document.getElementById(target) : target
+  // La pagina può essere appena cambiata: Lenis misura l'altezza del
+  // documento al momento del salto, altrimenti si ferma al limite vecchio.
+  if (lenis) lenis.resize()
   const top = typeof el === 'number' ? el : el ? el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET : 0
 
   if (lenis) {

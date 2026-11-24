@@ -31,27 +31,22 @@
 
 import data from './lavori.data.js'
 
-/** Le quattro categorie dell'elenco dello studio, nell'ordine dell'elenco. */
+/** Le tre categorie dell'elenco dello studio, nell'ordine dell'elenco. */
 export const categories = [
   {
     id: 'strutture',
     label: 'Strutture',
-    text: 'Calcolo e disegno esecutivo delle strutture: cemento armato, acciaio, interventi su edifici esistenti e dopo il sisma, opere speciali come piscine e passerelle.',
+    text: 'Progettazione esecutiva delle strutture, interventi su edifici esistenti, miglioramento e adeguamento sismico.',
   },
   {
     id: 'edilizia',
     label: 'Edilizia',
-    text: 'Abitazioni nuove e ristrutturate, condomini, spazi sportivi e pubblici: dal rilievo al cantiere, spesso con il prima e il dopo fotografati.',
+    text: 'Nuovi interventi e ristrutturazioni dell’esistente.',
   },
   {
     id: 'agricoltura',
     label: 'Agricoltura',
-    text: 'Vasche, trincee, magazzini e stalle: strutture in cemento armato al servizio delle aziende agricole della pianura mantovana e veronese.',
-  },
-  {
-    id: 'industria',
-    label: 'Industria',
-    text: 'Depositi e capannoni in acciaio, scale metalliche, strutture di servizio per impianti e attività produttive, anche a supporto di progetti d’autore.',
+    text: 'Realizzazione di nuovi fabbricati e strutture agricole: stalle, vasche, trincee, magazzini, rimesse.',
   },
 ]
 
@@ -367,7 +362,7 @@ const works = [
   {
     id: 'depuratore-meltina',
     year: 2014,
-    category: 'industria',
+    category: 'strutture',
     title: 'Depuratore di Meltina',
     kicker: 'Struttura di sostegno per la posa dei pacchi lamellari',
     client: 'SIBA S.p.A. (gruppo Veolia)',
@@ -513,7 +508,7 @@ const works = [
   {
     id: 'weightpack-goito',
     year: 2017,
-    category: 'industria',
+    category: 'strutture',
     title: 'Deposito Weightpack a Goito',
     kicker: 'Struttura metallica a destinazione deposito',
     client: 'Weightpack S.r.l.',
@@ -534,7 +529,7 @@ const works = [
   {
     id: 'pfm-remedello',
     year: 2018,
-    category: 'industria',
+    category: 'strutture',
     title: 'Deposito P.F.M. a Remedello',
     kicker: 'Struttura metallica a destinazione deposito',
     client: 'P.F.M.',
@@ -555,7 +550,7 @@ const works = [
   {
     id: 'latteria-sociale-mantovana',
     year: 2019,
-    category: 'industria',
+    category: 'strutture',
     title: 'Scala per la Latteria Sociale Mantovana',
     kicker: 'Scala in acciaio per lo stabilimento',
     client: 'Latteria Sociale Mantovana',
@@ -903,7 +898,7 @@ const works = [
   {
     id: 'roversi-cucinella',
     year: 2023,
-    category: 'industria',
+    category: 'strutture',
     title: 'Scala per Roversi Cesare Arredamenti',
     kicker: 'Struttura metallica di una scala a torre, su progetto di Mario Cucinella Architects',
     client: 'Roversi Cesare Arredamenti',

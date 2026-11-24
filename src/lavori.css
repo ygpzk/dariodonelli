@@ -1,7 +1,7 @@
 /* ==========================================================================
    Archivio dei lavori: il carosello in testa alla pagina principale, la
    sezione 02 e le schede dei lavori (/lavori/<id>). Stesso linguaggio del
-   resto del sito: filetti, etichette in maiuscoletto, titoli in Fraunces.
+   resto del sito: filetti, etichette in maiuscoletto, titoli in Inter Tight.
    Le fotografie stanno in bianco e nero e prendono colore al passaggio del
    puntatore; nel visualizzatore sono a colori, come le tavole: lì sono
    documenti da leggere, non immagini di pagina.
@@ -11,20 +11,18 @@
 
 .hero__slide img,
 .archive-row__figure img,
-.thumb__figure img,
 .work__cover img {
   display: block;
   width: 100%;
   height: auto;
   filter: grayscale(1);
   transition:
-    filter 0.5s ease,
-    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    filter 0.6s ease,
+    transform 1.2s var(--ease-out);
 }
 
 .hero__slide:hover img,
 .archive-row__link:hover .archive-row__figure img,
-.thumb:hover .thumb__figure img,
 .work__cover:hover img {
   filter: none;
 }
@@ -32,19 +30,20 @@
 /* --- Il carosello ------------------------------------------------------- */
 
 .hero {
+  margin-top: clamp(1.25rem, 2.5vw, 2rem);
   border-top: 1px solid var(--line-strong);
 }
 
-/* Il piano: tutte le immagini sovrapposte, una sola visibile; il
-   passaggio è una dissolvenza. */
+/* Il piano: tutte le immagini sovrapposte, una sola visibile. Il
+   passaggio è una dissolvenza con una tendina che parte da sinistra. */
 .hero__stage {
   position: relative;
-  touch-action: pan-y;
-  aspect-ratio: 5 / 2;
+  aspect-ratio: 16 / 7;
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
   border-top: 0;
+  touch-action: pan-y;
 }
 
 .hero__slide {
@@ -52,12 +51,16 @@
   inset: 0;
   display: block;
   opacity: 0;
-  transition: opacity 1.1s ease;
+  clip-path: inset(0 0 0 100%);
+  transition:
+    opacity 0.9s ease,
+    clip-path 1.1s var(--ease-clip);
   pointer-events: none;
 }
 
 .hero__slide.is-active {
   opacity: 1;
+  clip-path: inset(0);
   pointer-events: auto;
 }
 
@@ -66,18 +69,72 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
+  transform: scale(1.015);
   transition:
-    filter 0.5s ease,
-    transform 7s linear;
+    filter 0.6s ease,
+    transform 8s linear;
 }
 
 /* il lento avvicinamento dell'immagine attiva, poi fermo */
 .hero__slide.is-active img {
-  transform: scale(1.035);
+  transform: scale(1.075);
 }
 
 .hero__slide:hover img {
   filter: none;
+}
+
+/* L'etichetta in alto a sinistra, come il timbro su una tavola. */
+.hero__flag {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 2;
+  padding: 0.35rem 0.6rem;
+  color: var(--paper);
+  background: rgb(27 26 23 / 0.62);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+/* Il velo in basso tiene leggibili i filetti sopra le fotografie chiare. */
+.hero__stage::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: 24%;
+  background: linear-gradient(transparent, rgb(27 26 23 / 0.34));
+  pointer-events: none;
+}
+
+/* Il tempo che resta al lavoro corrente: un filetto che si riempie. */
+.hero__meter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  height: 2px;
+  background: rgb(250 249 246 / 0.28);
+}
+
+.hero__meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--paper);
+  transform-origin: left center;
+  animation: hero-meter var(--slide-ms, 6.5s) linear both;
+}
+
+@keyframes hero-meter {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 /* Un filetto per lavoro, in basso: quello pieno è il corrente */
@@ -85,7 +142,8 @@
   position: absolute;
   left: 1rem;
   right: 1rem;
-  bottom: 0.9rem;
+  bottom: 1rem;
+  z-index: 4;
   display: flex;
   gap: 0.4rem;
 }
@@ -97,18 +155,19 @@
 .hero__dot {
   display: block;
   width: 100%;
-  height: 14px;
-  background: linear-gradient(rgb(250 249 246 / 0.55), rgb(250 249 246 / 0.55)) center / 100% 2px no-repeat;
+  height: 18px;
+  background: linear-gradient(rgb(250 249 246 / 0.5), rgb(250 249 246 / 0.5)) center / 100% 1px no-repeat;
   transition: background 0.3s ease;
 }
 
 .hero__dot:hover,
 .hero__dot.is-active {
   background-image: linear-gradient(var(--paper), var(--paper));
+  background-size: 100% 2px;
 }
 
-.hero__dot.is-active {
-  background-size: 100% 3px;
+.hero__dot:focus-visible {
+  outline-color: var(--paper);
 }
 
 /* Sotto il piano: la didascalia del lavoro corrente e i comandi */
@@ -117,7 +176,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 1rem clamp(1.5rem, 4vw, 3rem);
   align-items: center;
-  padding: 1.1rem 0 0;
+  padding: 1.2rem 0 0;
 }
 
 .hero__meta {
@@ -130,15 +189,15 @@
   display: inline-block;
   margin-top: 0.45rem;
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 2.8vw, 2.125rem);
-  line-height: 1.2;
+  font-size: clamp(1.55rem, 2.9vw, 2.25rem);
+  line-height: 1.15;
   text-decoration: underline;
   text-decoration-color: transparent;
   text-decoration-thickness: 1px;
   text-underline-offset: 6px;
   transition: text-decoration-color 0.25s ease;
   font-weight: 700;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
 }
 
 .hero__title:hover {
@@ -147,22 +206,22 @@
 
 .hero__text {
   margin-top: 0.4rem;
+  max-width: 40rem;
   font-family: var(--font-serif);
   font-size: 1.0625rem;
   font-weight: 340;
   color: var(--ink-soft);
-  max-width: 40rem;
 }
 
 .hero__nav {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   white-space: nowrap;
 }
 
 .hero__count {
-  margin-right: 1rem;
+  margin-right: 0.9rem;
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   color: var(--muted);
@@ -173,16 +232,24 @@
   color: var(--ink);
 }
 
-/* Le frecce: solo il segno, grande e sottile, senza contorni. Al passaggio
-   prende inchiostro e avanza nella sua direzione. */
+/* Le frecce: un cerchio sottile, il segno dentro. Al passaggio prendono
+   inchiostro e il segno avanza nella sua direzione. */
 .hero__arrow {
-  padding: 0.25rem 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 1.25rem;
   font-weight: 300;
   line-height: 1;
-  color: var(--muted);
-  transition: color 0.3s var(--ease-out);
+  color: var(--ink-soft);
+  transition:
+    color 0.3s var(--ease-out),
+    background-color 0.3s var(--ease-out),
+    border-color 0.3s var(--ease-out);
 }
 
 .hero__arrow span {
@@ -192,15 +259,17 @@
 
 .hero__arrow:hover,
 .hero__arrow:focus-visible {
-  color: var(--ink);
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .hero__arrow:first-of-type:hover span {
-  transform: translateX(-6px);
+  transform: translateX(-4px);
 }
 
 .hero__arrow:last-of-type:hover span {
-  transform: translateX(6px);
+  transform: translateX(4px);
 }
 
 .hero__arrow:active span {
@@ -216,7 +285,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 3;
+  z-index: 5;
   pointer-events: none;
   will-change: transform;
 }
@@ -228,7 +297,7 @@
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -251,16 +320,9 @@
     transform: none;
   }
 
-  /* sui filetti torna il cursore normale */
   .hero__stage.has-cursor .hero__dots,
   .hero__stage.has-cursor .hero__dot {
     cursor: pointer;
-  }
-}
-
-@media (max-width: 720px) {
-  .hero__arrow {
-    font-size: 1.75rem;
   }
 }
 
@@ -271,6 +333,23 @@
 
   .hero__bar {
     grid-template-columns: 1fr;
+  }
+
+  .hero__flag {
+    top: 0.7rem;
+    left: 0.7rem;
+  }
+
+  .hero__dot {
+    height: 22px;
+  }
+
+  .hero__nav {
+    justify-content: space-between;
+  }
+
+  .hero__count {
+    margin-right: auto;
   }
 }
 
@@ -283,14 +362,26 @@
   .hero__slide.is-active img {
     transform: none;
   }
+
+  .hero__meter {
+    display: none;
+  }
+
+  .hero__stage::after {
+    display: none;
+  }
 }
 
 /* --- L'archivio ------------------------------------------------------------ */
 
-/* Le quattro categorie, in colonne */
+.archive {
+  position: relative;
+}
+
+/* Le tre categorie, in colonne */
 .categories {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(1.5rem, 4vw, 3rem);
 }
 
@@ -298,7 +389,7 @@
   font-family: var(--font-display);
   font-size: 1.375rem;
   font-weight: 700;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 /* il numero dei lavori, in piccolo e in alto accanto al nome */
@@ -327,18 +418,6 @@
   color: var(--ink-soft);
 }
 
-@media (max-width: 860px) {
-  .categories {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  .categories {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Gli ambiti, in una riga */
 .ambiti-inline {
   display: flex;
@@ -363,10 +442,11 @@
 }
 
 /* Filtro: bottoni che sembrano collegamenti testuali; quello attivo è
-   sottolineato in inchiostro */
+   sottolineato in inchiostro. Il conteggio sta a destra. */
 .archive__filter {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   gap: 0.75rem 1.75rem;
   margin-top: clamp(2.5rem, 5vw, 3.5rem);
   padding-bottom: 1rem;
@@ -394,21 +474,118 @@
   border-color: var(--ink);
 }
 
+.archive__count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.9rem;
+  margin-left: auto;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.archive__reset {
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line-strong);
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.archive__reset:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* La miniatura che segue il mouse, solo con puntatore fine. */
+.archive__preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  width: 19rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  will-change: transform;
+}
+
+.archive.is-previewing .archive__preview {
+  opacity: 1;
+}
+
+.archive__preview-card {
+  overflow: hidden;
+  translate: -50% -112%;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 30px 60px -40px rgb(27 26 23 / 0.55);
+}
+
+.archive__preview-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.archive__preview-card figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  border-top: 1px solid var(--line);
+}
+
+.archive__preview-card .label {
+  font-family: var(--font-sans);
+  font-size: 0.5625rem;
+}
+
+@media (max-width: 1000px), (hover: none) {
+  .archive__preview {
+    display: none;
+  }
+}
+
 /* Le righe dell'elenco: anno, miniatura, titolo e sottotitolo, categoria,
    luogo. Tutta la riga è il collegamento. */
 .archive-list {
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+.archive-row {
+  scroll-margin-top: calc(var(--header-h) + 1.5rem);
+}
+
+/* La riga da cui si è entrati nella scheda resta segnata al ritorno. */
+.archive-row:target .archive-row__link {
+  background: var(--paper);
+  box-shadow: inset 2px 0 0 var(--ink);
 }
 
 .archive-row__link {
   display: grid;
-  grid-template-columns: 3.5rem 6rem minmax(0, 1fr) 7rem 11rem;
+  grid-template-columns: 3.5rem 6rem minmax(0, 1fr) 7rem 9rem 2rem;
   gap: clamp(1rem, 2.5vw, 2rem);
   align-items: center;
-  padding: 0.95rem 0;
+  margin-inline: -0.75rem;
+  padding: 0.9rem 0.75rem;
   border-bottom: 1px solid var(--line);
-  transition: background-color 0.2s ease;
+  transition: background-color 0.25s ease;
 }
 
 .archive-row__link:hover {
@@ -473,13 +650,33 @@ html.js .archive-row.reveal {
 }
 
 .archive-row__kicker {
+  overflow: hidden;
   font-size: 0.875rem;
   color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* La freccia compare sulla riga: è il segno che si apre qualcosa. */
+.archive-row__go {
+  font-size: 1rem;
+  color: var(--muted);
+  opacity: 0;
+  transform: translate(-4px, 4px);
+  transition:
+    opacity 0.3s ease,
+    transform 0.35s var(--ease-out);
+}
+
+.archive-row__link:hover .archive-row__go,
+.archive-row__link:focus-visible .archive-row__go {
+  opacity: 1;
+  transform: none;
 }
 
 @media (max-width: 1000px) {
   .archive-row__link {
-    grid-template-columns: 3.5rem 5rem minmax(0, 1fr);
+    grid-template-columns: 3.5rem 5rem minmax(0, 1fr) 2rem;
   }
 
   .archive-row__cat,
@@ -488,10 +685,26 @@ html.js .archive-row.reveal {
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
+  .categories {
+    grid-template-columns: 1fr;
+  }
+
   .archive-row__link {
     grid-template-columns: 3rem 4.5rem minmax(0, 1fr);
     gap: 0.9rem;
+  }
+
+  .archive-row__go {
+    display: none;
+  }
+
+  .archive-row__kicker {
+    display: none;
+  }
+
+  .archive__count {
+    margin-left: 0;
   }
 }
 
@@ -524,14 +737,18 @@ html.js .archive-row.reveal {
   border-color: var(--ink);
 }
 
+.work__no {
+  margin-top: clamp(1.5rem, 3vw, 2.25rem);
+}
+
 .work__title {
-  margin-top: clamp(1.25rem, 3vw, 2rem);
+  margin-top: 0.75rem;
   font-family: var(--font-display);
-  font-size: clamp(2.5rem, 6.5vw, 5rem);
   max-width: 18ch;
+  font-size: clamp(2.4rem, 6.5vw, 5rem);
   font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 0.95;
+  letter-spacing: -0.045em;
+  line-height: 0.93;
 }
 
 .work__kicker {
@@ -570,9 +787,9 @@ html.js .archive-row.reveal {
 }
 
 .work__sheet {
-  align-self: start;
   position: sticky;
   top: calc(var(--header-h) + 2rem);
+  align-self: start;
 }
 
 .work__text {
@@ -598,104 +815,6 @@ html.js .archive-row.reveal {
 
 .work__viewer {
   margin-top: clamp(4rem, 8vw, 6rem);
-}
-
-/* --- Indice visivo: miniature che aprono il visualizzatore ------------------ */
-
-.index {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(2.5rem, 5vw, 3.5rem);
-  margin-top: clamp(3rem, 6vw, 4.5rem);
-}
-
-.index__head {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--line-strong);
-}
-
-.index__grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(1.25rem, 3vw, 2rem) clamp(1rem, 2.5vw, 1.75rem);
-  margin-top: 1.25rem;
-}
-
-.index__grid--sheets {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.thumb {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  width: 100%;
-  text-align: left;
-}
-
-.thumb__figure {
-  display: block;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  transition: border-color 0.2s ease;
-}
-
-.thumb:hover .thumb__figure {
-  border-color: var(--line-strong);
-}
-
-.thumb__figure img {
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-}
-
-/* le tavole non si ritagliano: si vedono intere, sul bianco del foglio */
-.index__grid--sheets .thumb__figure img {
-  aspect-ratio: 3 / 2;
-  object-fit: contain;
-  background: #fff;
-  filter: none;
-}
-
-.thumb__caption {
-  font-size: 0.875rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
-}
-
-.thumb__meta {
-  font-size: 0.6875rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-@media (max-width: 1000px) {
-  .index__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .index__grid--sheets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 860px) {
-  .work__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .work__sheet {
-    position: static;
-  }
-}
-
-@media (max-width: 560px) {
-  .index__grid,
-  .index__grid--sheets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* --- Precedente e successivo ------------------------------------------------- */
@@ -736,6 +855,16 @@ html.js .archive-row.reveal {
 
 .work__nav-link:hover .work__nav-title {
   text-decoration-color: var(--ink);
+}
+
+@media (max-width: 860px) {
+  .work__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .work__sheet {
+    position: static;
+  }
 }
 
 @media (max-width: 720px) {

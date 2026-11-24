@@ -3,10 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="format-detection" content="telephone=no" />
     <!-- Con JavaScript attivo gli elementi possono nascondersi in attesa
          della rivelazione allo scroll; senza, l'HTML prerenderizzato resta
-         tutto visibile. -->
-    <script>document.documentElement.classList.add('js')</script>
+         tutto visibile. Lo script è un file esterno, così la Content
+         Security Policy può restare senza 'unsafe-inline'. -->
+    <script src="/js.js"></script>
     <!-- Logo dello studio come icona: .ico multi-risoluzione (16→256px)
          generato dal logo originale. La variante PNG serve a iOS. -->
     <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -15,27 +18,30 @@
     <title>Ing. Dario Donelli | Studio tecnico a Rivalta sul Mincio (MN)</title>
     <meta
       name="description"
-      content="Studio tecnico dell'Ing. Dario Donelli a Rivalta sul Mincio (Mantova): progettazione architettonica e strutturale, sicurezza sismica, riqualificazione energetica e direzione lavori. Archivio dei lavori dal 2010."
+      content="Studio tecnico dell'Ing. Dario Donelli a Rivalta sul Mincio (Mantova): progettazione architettonica e strutturale, sicurezza sismica, riqualificazione energetica e direzione lavori. L'archivio dei lavori dello studio."
     />
-
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#faf9f6" />
     <meta name="author" content="Ing. Dario Donelli" />
 
     <!-- Anteprima nelle condivisioni. Gli URL devono essere assoluti:
          gli scraper di WhatsApp e simili ignorano i percorsi relativi.
-         Quando arriverà il dominio definitivo, aggiornare qui e in
-         `siteUrl` (src/content.js). In produzione il prerender
+         %SITE_URL% arriva da `siteUrl` (src/content.js) tramite Vite: il
+         dominio si cambia in un punto solo. In produzione il prerender
          (plugins/prerender.js) riscrive titolo, descrizione e questi tag
          per ogni pagina: le schede dei lavori hanno i propri. -->
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="it_IT" />
+    <meta property="og:site_name" content="Ing. Dario Donelli" />
     <meta property="og:title" content="Ing. Dario Donelli | Studio tecnico" />
     <meta
       property="og:description"
       content="Progettazione, strutture, sicurezza sismica e direzione lavori a Rivalta sul Mincio e in provincia di Mantova."
     />
-    <meta property="og:url" content="https://dariodonelli.vercel.app/" />
-    <meta property="og:image" content="https://dariodonelli.vercel.app/images/hero-targa-og.jpg" />
+    <meta property="og:url" content="%SITE_URL%/" />
+    <meta property="og:image" content="%SITE_URL%/images/hero-targa-og.jpg" />
+    <meta property="og:image:alt" content="La targa dello studio Ing. Dario Donelli" />
+    <meta name="twitter:card" content="summary_large_image" />
 
     <!-- Font variabili auto-ospitati (vedi i @font-face in src/index.css):
          nessuna richiesta a Google Fonts. Il preload copre i due

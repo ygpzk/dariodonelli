@@ -2,7 +2,9 @@
    Fondamenta
    Token di design e regole di base. Lo stile del sito è volutamente
    minimale: carta calda, inchiostro quasi nero, filetti sottili e due
-   famiglie tipografiche — Fraunces per i titoli, Inter per il resto.
+   famiglie tipografiche — Inter Tight per i titoli, Fraunces per gli
+   attacchi, Inter per il resto. Nessun accento cromatico: il colore lo
+   portano le fotografie, quando si posa il puntatore.
    --------------------------------------------------------------------------- */
 
 /* --- Font auto-ospitati ----------------------------------------------------
@@ -78,7 +80,8 @@
 :root {
   /* Colori: nessun accento cromatico, solo carta e inchiostro. */
   --paper: #faf9f6;
-  --surface: #f2f0ea;
+  --surface: #f1efe9;
+  --surface-deep: #eae7df;
   --ink: #1b1a17;
   --ink-soft: #4e4b45;
   /* Abbastanza scuro da superare il contrasto AA (4,5:1) anche su
@@ -100,7 +103,7 @@
   /* Ritmo verticale delle sezioni. */
   --space-section: clamp(5.5rem, 11vw, 9.5rem);
 
-  --header-h: 72px;
+  --header-h: 68px;
 }
 
 *,
@@ -112,6 +115,13 @@
 html {
   /* I salti d'ancora atterrano sotto l'header fisso. */
   scroll-padding-top: calc(var(--header-h) + 16px);
+  -webkit-text-size-adjust: 100%;
+}
+
+html.is-locked,
+html.is-locked body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -173,6 +183,11 @@ button {
   cursor: pointer;
 }
 
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
 ::selection {
   background: var(--ink);
   color: var(--paper);
@@ -181,6 +196,11 @@ button {
 :focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
+}
+
+.site-main:focus,
+.site-main:focus-visible {
+  outline: none;
 }
 
 /* --- Utilità ------------------------------------------------------------- */
@@ -200,6 +220,30 @@ button {
   color: var(--muted);
 }
 
+/* Pastiglia di stato: BIM «in preparazione». */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+
+.badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  animation: blink 2.4s ease-in-out infinite;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -216,16 +260,27 @@ button {
   position: fixed;
   top: 12px;
   left: 12px;
-  z-index: 100;
+  z-index: 200;
   padding: 0.6rem 1rem;
   background: var(--ink);
   color: var(--paper);
   font-size: 0.875rem;
   transform: translateY(-200%);
+  transition: transform 0.2s ease;
 }
 
 .skip-link:focus {
   transform: none;
+}
+
+/* L'email composta a pezzi: i due lati restano attaccati alla chiocciola. */
+.mail-link {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.mail-link__at {
+  padding-inline: 0.02em;
 }
 
 /* --- Movimento ------------------------------------------------------------
@@ -252,7 +307,7 @@ button {
 }
 
 html.js .split .w__in {
-  animation: rise 0.8s var(--ease-out) both;
+  animation: rise 0.9s var(--ease-out) both;
   animation-delay: calc(var(--w, 0) * 45ms);
   animation-play-state: paused;
 }
@@ -274,12 +329,12 @@ html.js .is-visible .split .w__in {
 /* immagini che si scoprono: dal basso, con un lieve rientro dello zoom */
 html.js .media-reveal {
   clip-path: inset(0 0 100% 0);
-  transition: clip-path 1s var(--ease-clip);
+  transition: clip-path 1.05s var(--ease-clip);
 }
 
 html.js .media-reveal img {
   transform: scale(1.08);
-  transition: transform 1.5s var(--ease-out);
+  transition: transform 1.6s var(--ease-out);
 }
 
 html.js .is-visible .media-reveal,
@@ -295,11 +350,11 @@ html.js .media-reveal--now img {
 }
 
 html.js .media-reveal--now {
-  animation: unclip 1s var(--ease-clip) both;
+  animation: unclip 1.05s var(--ease-clip) both;
 }
 
 html.js .media-reveal--now img {
-  animation: unscale 1.5s var(--ease-out) both;
+  animation: unscale 1.6s var(--ease-out) both;
 }
 
 @keyframes unclip {
@@ -320,19 +375,29 @@ html.js .media-reveal--now img {
   }
 }
 
-/* l'ingresso di una pagina */
-html.js .site-main > * {
-  animation: page-in 0.7s var(--ease-out) both;
+/* l'ingresso di una pagina: un solo contenitore, non ogni sezione */
+html.js .site-page {
+  animation: page-in 0.75s var(--ease-out) both;
 }
 
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
   }
 }
 
@@ -342,12 +407,30 @@ html.js .site-main > * {
   html.js .media-reveal img,
   html.js .media-reveal--now,
   html.js .media-reveal--now img,
-  html.js .site-main > * {
+  html.js .site-page,
+  .badge::before {
     animation: none;
     transition: none;
     transform: none;
     clip-path: none;
     opacity: 1;
+  }
+
+  .menu,
+  .menu.is-open,
+  .header,
+  .work-back {
+    transition: none;
+  }
+
+  .menu__nav li {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  html {
+    scroll-behavior: auto;
   }
 }
 

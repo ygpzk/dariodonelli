@@ -342,6 +342,11 @@
 @media (max-width: 860px) {
   .viewer {
     --viewer-strip-h: 56px;
+    --viewer-stage-h: auto;
+  }
+
+  .viewer__stage {
+    aspect-ratio: 4 / 3;
   }
 
   .viewer__foot {

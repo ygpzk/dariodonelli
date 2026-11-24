@@ -17,14 +17,26 @@ export const HOME = {
   path: '/',
   title: 'Ing. Dario Donelli | Studio tecnico a Rivalta sul Mincio (MN)',
   description:
-    'Studio tecnico dell’Ing. Dario Donelli a Rivalta sul Mincio (Mantova): progettazione architettonica e strutturale, sicurezza sismica, riqualificazione energetica e direzione lavori. Archivio dei lavori dal 2010.',
+    'Studio tecnico dell’Ing. Dario Donelli a Rivalta sul Mincio (Mantova): progettazione architettonica e strutturale, sicurezza sismica, riqualificazione energetica e direzione lavori. L’archivio dei lavori dello studio.',
   image: `${siteUrl}/images/hero-targa-og.jpg`,
+  imageAlt: 'La targa dello studio Ing. Dario Donelli',
+}
+
+/**
+ * Gli indirizzi della versione precedente del sito restano vivi: si apre la
+ * pagina principale e un effetto porta alla sezione giusta.
+ */
+export const legacyPaths = {
+  '/servizi': 'servizi',
+  '/progetti': 'lavori',
+  '/studio': 'studio',
+  '/contatti': 'contatti',
 }
 
 /** Percorso → pagina. Un lavoro inesistente dà la pagina «non trovato». */
 export function resolve(pathname) {
   const path = pathname.replace(/\/+$/, '') || '/'
-  if (path === '/') return HOME
+  if (path === '/' || legacyPaths[path]) return HOME
   const m = path.match(/^\/lavori\/([a-z0-9-]+)$/)
   if (m) {
     const work = lavoriById[m[1]]
@@ -35,7 +47,8 @@ export function resolve(pathname) {
         work,
         title: `${work.title} (${work.year}) | ${studio.name}`,
         description: work.summary,
-        image: `${siteUrl}${work.cover.mini}`,
+        image: `${siteUrl}${work.cover.thumb}`,
+        imageAlt: `${work.title}: ${work.cover.title}`,
       }
     }
   }
@@ -45,6 +58,7 @@ export function resolve(pathname) {
     title: `Pagina non trovata | ${studio.name}`,
     description: HOME.description,
     image: HOME.image,
+    imageAlt: HOME.imageAlt,
   }
 }
 

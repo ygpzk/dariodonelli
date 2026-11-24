@@ -74,6 +74,14 @@ export default function prerender() {
           'utf8',
         )
         await writeFile(resolve(root, 'dist/robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${site}/sitemap.xml\n`, 'utf8')
+
+        // La pagina 404 è statica e generica: Vercel la serve per gli
+        // indirizzi che non corrispondono a un file, con lo stato 404.
+        const missing = render('/404')
+        const notFound = withHead(template, { ...missing.head, path: '/' }, site, { canonical: false })
+          .replace('<div id="root"></div>', `<div id="root">${missing.html}</div>`)
+          .replace(/<meta name="robots" content="[^"]*"\s*\/?>/, '<meta name="robots" content="noindex" />')
+        await writeFile(resolve(root, 'dist/404.html'), notFound, 'utf8')
       },
     },
   }
@@ -82,14 +90,15 @@ export default function prerender() {
 const escapeAttr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
 /** Sostituisce nel modello i tag di testa con quelli della pagina. */
-function withHead(template, head, site) {
+function withHead(template, head, site, { canonical = true } = {}) {
   const url = `${site}${head.path === '/' ? '/' : head.path}`
-  return template
+  const page = template
     .replace(/<title>[^<]*<\/title>/, `<title>${escapeAttr(head.title)}</title>`)
     .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, `$1${escapeAttr(head.description)}$2`)
     .replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escapeAttr(head.title)}$2`)
     .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/, `$1${escapeAttr(head.description)}$2`)
     .replace(/(<meta property="og:url" content=")[^"]*(")/, `$1${url}$2`)
     .replace(/(<meta property="og:image" content=")[^"]*(")/, `$1${head.image}$2`)
-    .replace('</head>', `    <link rel="canonical" href="${url}" />\n  </head>`)
+    .replace(/(<meta property="og:image:alt" content=")[^"]*(")/, `$1${escapeAttr(head.imageAlt || '')}$2`)
+  return canonical ? page.replace('</head>', `    <link rel="canonical" href="${url}" />\n  </head>`) : page
 }

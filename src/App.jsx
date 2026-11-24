@@ -1,10 +1,12 @@
-import { Fragment, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { Fragment, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './lavori.css'
-import { prefersReducedMotion, scrollToTarget, useReveal, useSmoothScroll } from './motion.js'
+import { prefersReducedMotion, scrollToTarget, startSmoothScroll, stopSmoothScroll, useReveal, useSmoothScroll } from './motion.js'
 import SheetViewer from './viewer/SheetViewer.jsx'
 import {
   ambiti,
+  bim,
+  collaborators,
   disciplines,
   infoline,
   mapEmbedSrc,
@@ -13,15 +15,17 @@ import {
   sections,
   serviceAreas,
   serviceIndex,
+  siteUrl,
   studio,
 } from './content.js'
 import { categories, lavori, lavoriById, lavoriInEvidenza, neighbours } from './lavori.js'
-import { resolve } from './routes.js'
+import { resolve, legacyPaths } from './routes.js'
 
 /* ---------------------------------------------------------------------------
    Marchio
    Il logo della targa ridisegnato in vettoriale: una "D" a doppio profilo,
-   in nero, sovrapposta alla sua immagine speculare in grigio.
+   in nero, sovrapposta alla sua immagine speculare in grigio. Vive nella
+   testata della pagina, non nell'header: lì il nome basta.
    --------------------------------------------------------------------------- */
 
 const LOGO_OUTER = 'M64 64H520A456 456 0 0 1 520 976H64Z'
@@ -34,9 +38,9 @@ function Logo({ className = '', ...props }) {
         <path d={LOGO_OUTER} />
         <path d={LOGO_INNER} />
       </g>
-      <g stroke="currentColor" strokeWidth="48">
-        <path d={LOGO_OUTER} />
-        <path d={LOGO_INNER} />
+      <g className="logo__ink" stroke="currentColor" strokeWidth="48">
+        <path className="logo__line" pathLength="1" d={LOGO_OUTER} />
+        <path className="logo__line logo__line--late" pathLength="1" d={LOGO_INNER} />
       </g>
     </svg>
   )
@@ -49,6 +53,10 @@ function Logo({ className = '', ...props }) {
    collegamenti interni lo cambiano con pushState, senza ricaricare, e il
    tasto indietro del browser lo riporta. Il prerender passa il percorso
    dall'esterno (`url`), così server e browser rendono la stessa pagina.
+
+   La cronologia salva anche la quota di scorrimento: tornando indietro si
+   riapre la pagina dove la si era lasciata, e dalle schede «Lavori» riporta
+   alla riga da cui si è entrati (vedi `Archive` e `WorkPage`).
    --------------------------------------------------------------------------- */
 
 const RouterContext = createContext({ path: '/', navigate: () => {} })
@@ -59,20 +67,43 @@ const isPlainClick = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shi
 
 const pad2 = (n) => String(n).padStart(2, '0')
 
+const FILTER_PARAM = 'categoria'
+
+/** useLayoutEffect sul browser, useEffect nel prerender (dove non esiste). */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+
+/** La categoria attiva si legge dall'indirizzo: il filtro resta condivisibile. */
+function readFilter() {
+  if (typeof window === 'undefined') return 'all'
+  const value = new URLSearchParams(window.location.search).get(FILTER_PARAM)
+  return categories.some((c) => c.id === value) ? value : 'all'
+}
+
+/** L'indirizzo del filtro, con l'ancora eventualmente presente. */
+function filterUrl(id) {
+  const { pathname, search, hash } = window.location
+  const params = new URLSearchParams(search)
+  if (id === 'all') params.delete(FILTER_PARAM)
+  else params.set(FILTER_PARAM, id)
+  const query = params.toString()
+  return `${pathname}${query ? `?${query}` : ''}${hash}`
+}
+
 /**
  * Collegamento a una pagina del sito. Resta un <a> con l'href vero: con il
  * tasto centrale, Ctrl o senza JavaScript funziona come sempre.
  */
-function RouteLink({ to, hash, className, children, ...props }) {
+function RouteLink({ to, hash, search, className, children, ...props }) {
   const { navigate } = useRouter()
+  const href = `${to}${search ? `?${search}` : ''}${hash ? `#${hash}` : ''}`
   return (
     <a
-      href={hash ? `${to}#${hash}` : to}
+      href={href}
       className={className}
       onClick={(e) => {
         if (!isPlainClick(e)) return
         e.preventDefault()
-        navigate(to, hash)
+        navigate(to, hash, { search })
       }}
       {...props}
     >
@@ -86,25 +117,64 @@ function RouteLink({ to, hash, className, children, ...props }) {
    --------------------------------------------------------------------------- */
 
 /**
- * Stato dell'header: dopo i primi pixel prende il filetto; scorrendo verso
- * il basso si ritira, risalendo torna.
+ * Stato dell'header e avanzamento della lettura. Lo scorrimento passa da
+ * requestAnimationFrame e cambia lo stato solo quando serve: niente
+ * ridisegni a ogni pixel. La barra di avanzamento si scrive direttamente
+ * nello stile dell'elemento. L'header resta sempre in vista: le sezioni
+ * sono la navigazione del sito e non devono mai sparire.
  */
 function useHeaderState() {
-  const [state, setState] = useState({ scrolled: false, hidden: false })
+  const [scrolled, setScrolled] = useState(false)
+  const progressRef = useRef(null)
+
   useEffect(() => {
-    let last = window.scrollY
-    const onScroll = () => {
+    let frame = 0
+
+    const update = () => {
+      frame = 0
       const y = window.scrollY
-      const down = y > last + 6
-      const up = y < last - 6
-      setState((s) => ({ scrolled: y > 24, hidden: y > 360 && down ? true : up || y <= 360 ? false : s.hidden }))
-      last = y
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      progressRef.current?.style.setProperty('--read', max > 0 ? Math.min(1, Math.max(0, y / max)).toFixed(4) : '0')
+      const next = y > 24
+      setScrolled((s) => (s === next ? s : next))
     }
-    onScroll()
+
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update)
+    }
+    update()
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
   }, [])
-  return state
+
+  return { scrolled, progressRef }
+}
+
+/** La sezione che sta attraversando la parte alta dello schermo. */
+function useActiveSection(enabled) {
+  const [active, setActive] = useState('')
+
+  useEffect(() => {
+    if (!enabled || typeof IntersectionObserver === 'undefined') return
+    const nodes = sections.map((s) => document.getElementById(s.id)).filter(Boolean)
+    if (!nodes.length) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible[0]) setActive(visible[0].target.id)
+      },
+      { rootMargin: '-18% 0px -58% 0px', threshold: 0 },
+    )
+    nodes.forEach((node) => observer.observe(node))
+    return () => observer.disconnect()
+  }, [enabled])
+
+  return enabled ? active : ''
 }
 
 /**
@@ -136,7 +206,7 @@ function Split({ text, now = false }) {
 function scrollToSection(id) {
   if (!document.getElementById(id)) return
   scrollToTarget(id)
-  window.history.replaceState(null, '', `#${id}`)
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${id}`)
 }
 
 /**
@@ -158,6 +228,61 @@ function useAnchorNav() {
   )
 }
 
+/**
+ * L'indirizzo email non compare mai intero nel sorgente: si compone nel
+ * browser e sullo schermo è spezzato in più nodi. Chi legge lo vede
+ * normale, i raccoglitori automatici trovano molto meno.
+ */
+function MailLink({ user, domain, className = '', children, label, ...props }) {
+  const linkRef = useRef(null)
+  const address = `${user}${String.fromCharCode(64)}${domain}`
+
+  // L'indirizzo compare solo nel DOM dopo l'idratazione: nel sorgente
+  // prerenderizzato non c'è un link mailto da raccogliere.
+  useEffect(() => {
+    if (linkRef.current) linkRef.current.href = `mailto:${address}`
+  }, [address])
+
+  return (
+    <a
+      ref={linkRef}
+      className={`mail-link ${className}`}
+      aria-label={label || `Scrivi a ${address}`}
+      onClick={(e) => {
+        if (e.currentTarget.getAttribute('href')) return
+        e.preventDefault()
+        window.location.href = `mailto:${address}`
+      }}
+      {...props}
+    >
+      {children || (
+        <>
+          <span>{user}</span>
+          <span className="mail-link__at" aria-hidden="true">
+            @
+          </span>
+          <span>{domain}</span>
+        </>
+      )}
+    </a>
+  )
+}
+
+/** Aggiorna i metadati della pagina quando si cambia pagina senza ricaricare. */
+function applyPageMeta(page) {
+  document.title = page.title
+  const url = `${siteUrl}${page.path === '/' ? '/' : page.path}`
+  const set = (selector, value) => document.querySelector(selector)?.setAttribute('content', value)
+  set('meta[name="description"]', page.description)
+  set('meta[property="og:title"]', page.title)
+  set('meta[property="og:description"]', page.description)
+  set('meta[property="og:url"]', url)
+  set('meta[property="og:image"]', page.image)
+  set('meta[property="og:image:alt"]', page.imageAlt)
+  const canonical = document.querySelector('link[rel="canonical"]')
+  if (canonical) canonical.setAttribute('href', url)
+}
+
 /* ---------------------------------------------------------------------------
    Header
    --------------------------------------------------------------------------- */
@@ -165,49 +290,181 @@ function useAnchorNav() {
 function Brand() {
   return (
     <span className="brand__inner">
-      <Logo className="brand__mark" />
       <span className="brand__copy">
         <span className="brand__name">{studio.name}</span>
-        <span className="brand__role">{studio.role}</span>
+        <span className="brand__role">Ingegnere · Rivalta sul Mincio</span>
       </span>
     </span>
   )
 }
 
-/* Il marchio e, a destra, le sezioni come collegamenti testuali: tutto il
+const backToTop = () => {
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
+  scrollToTarget(0)
+}
+
+function MobileMenu({ open, onClose }) {
+  const { path, navigate } = useRouter()
+  const menuRef = useRef(null)
+  const firstLink = useRef(null)
+  const lastFocused = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    lastFocused.current = document.activeElement
+    stopSmoothScroll()
+    document.documentElement.classList.add('is-locked')
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab' || !menuRef.current) return
+      const focusable = [...menuRef.current.querySelectorAll('a[href], button:not([disabled])')].filter((el) => el.offsetParent !== null)
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    firstLink.current?.focus({ preventScroll: true })
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.documentElement.classList.remove('is-locked')
+      startSmoothScroll()
+      lastFocused.current?.focus?.({ preventScroll: true })
+    }
+  }, [open, onClose])
+
+  const go = (event, id) => {
+    if (!isPlainClick(event)) return
+    event.preventDefault()
+    onClose()
+    if (path === '/') {
+      // Il menu si chiude e sblocca la pagina; lo scorrimento parte dopo
+      // che il blocco è stato tolto, altrimenti resterebbe a zero.
+      startSmoothScroll()
+      document.documentElement.classList.remove('is-locked')
+      requestAnimationFrame(() => requestAnimationFrame(() => scrollToSection(id)))
+    } else {
+      navigate('/', id)
+    }
+  }
+
+  return (
+    <div className={`menu${open ? ' is-open' : ''}`} id="menu-sito" role="dialog" aria-modal="true" aria-label="Menu del sito" aria-hidden={!open} inert={!open} data-lenis-prevent ref={menuRef}>
+      <div className="menu__inner">
+        <div className="menu__top">
+          <span className="label">Indice</span>
+          <span className="label">{pad2(sections.length)} sezioni</span>
+        </div>
+
+        <nav className="menu__nav" aria-label="Sezioni del sito">
+          <ol role="list">
+            {sections.map((s, i) => (
+              <li key={s.id} style={{ '--i': i }}>
+                <a href={`/#${s.id}`} onClick={(e) => go(e, s.id)} ref={i === 0 ? firstLink : undefined}>
+                  <span className="menu__num">{s.num}</span>
+                  <span className="menu__label">{s.label}</span>
+                  {s.id === 'bim' && <span className="menu__tag">in preparazione</span>}
+                  <span className="menu__arrow" aria-hidden="true">
+                    ↗
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
+        <div className="menu__foot">
+          <a href={studio.phoneHref}>{studio.phoneDisplay}</a>
+          <MailLink user={studio.emailUser} domain={studio.emailDomain} label="Scrivi allo studio" />
+          <span>{studio.addressLines.join(' · ')}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Il nome e, a destra, le sezioni come collegamenti testuali: tutto il
    sito è raggiungibile dalla prima riga. Nelle schede dei lavori le voci
    riportano alla pagina principale. */
 function Header() {
-  const { scrolled, hidden } = useHeaderState()
+  const { scrolled, progressRef } = useHeaderState()
   const { path, navigate } = useRouter()
   const onNav = useAnchorNav()
+  const active = useActiveSection(path === '/')
+  const [open, setOpen] = useState(false)
+  const close = useCallback(() => setOpen(false), [])
+
+  // Cambiando pagina il menu si chiude da sé.
+  useEffect(() => setOpen(false), [path])
+
+  // Tornando a una finestra larga il menu lascia il posto alle sezioni.
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth > 1020) setOpen(false)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   return (
-    <header className={`header${scrolled ? ' header--scrolled' : ''}${hidden ? ' header--hidden' : ''}`}>
-      <div className="container header__inner">
-        <a
-          href="/"
-          className="brand"
-          aria-label={`${studio.name}, torna all'inizio`}
-          onClick={(e) => {
-            if (!isPlainClick(e)) return
-            e.preventDefault()
-            if (path !== '/') return navigate('/')
-            scrollToTarget(0)
-            window.history.replaceState(null, '', ' ')
-          }}
-        >
-          <Brand />
-        </a>
-        <nav className="header__nav" aria-label="Sezioni">
-          {sections.map((s) => (
-            <a key={s.id} href={`/#${s.id}`} onClick={onNav}>
-              {s.label}
-            </a>
-          ))}
-        </nav>
-      </div>
-    </header>
+    <>
+      <header className={`header${scrolled ? ' header--scrolled' : ''}${open ? ' header--open' : ''}`}>
+        <span className="header__read" ref={progressRef} aria-hidden="true" />
+        <div className="container header__inner">
+          <a
+            href="/"
+            className="brand"
+            aria-label={`${studio.name}, torna all'inizio`}
+            onClick={(e) => {
+              if (!isPlainClick(e)) return
+              e.preventDefault()
+              close()
+              if (path !== '/') return navigate('/')
+              startSmoothScroll()
+              document.documentElement.classList.remove('is-locked')
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => {
+                  scrollToTarget(0)
+                  window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
+                }),
+              )
+            }}
+          >
+            <Brand />
+          </a>
+
+          <nav className="header__nav" aria-label="Sezioni">
+            {sections.map((s) => (
+              <a key={s.id} href={`/#${s.id}`} onClick={onNav} aria-current={active === s.id ? 'true' : undefined} className={s.id === 'bim' ? 'header__nav-bim' : undefined}>
+                {s.label}
+                {s.id === 'bim' && <span className="header__dot" title="In preparazione" aria-label="in preparazione" />}
+              </a>
+            ))}
+          </nav>
+
+          <button type="button" className="menu-toggle" aria-expanded={open} aria-controls="menu-sito" onClick={() => setOpen((v) => !v)}>
+            <span className="menu-toggle__label">{open ? 'Chiudi' : 'Menu'}</span>
+            <span className={`menu-toggle__icon${open ? ' is-open' : ''}`} aria-hidden="true">
+              <span />
+              <span />
+            </span>
+          </button>
+        </div>
+      </header>
+
+      {/* Fuori dall'header: il backdrop-filter dell'header creerebbe un
+          contenitore per il position:fixed del menu. */}
+      <MobileMenu open={open} onClose={close} />
+    </>
   )
 }
 
@@ -219,20 +476,20 @@ function Header() {
  * Intestazione di sezione: numero ed etichetta sul filetto, poi il titolo.
  * Il filetto sottile è l'unico segno grafico che attraversa il sito.
  */
-function SectionHead({ id, title, text, children }) {
+function SectionHead({ id, title, text, badge }) {
   const section = sections.find((s) => s.id === id)
   return (
     <div className="section-head reveal">
       <div className="section-head__meta">
         <span className="section-head__index">{section.num}</span>
         <span className="label">{section.label}</span>
+        {badge && <span className="badge">{badge}</span>}
       </div>
       <div className="section-head__body">
         <h2 className="headline">
           <Split text={title} />
         </h2>
         {text && <p className="lead">{text}</p>}
-        {children}
       </div>
     </div>
   )
@@ -249,6 +506,7 @@ function Photo({ base, ext = 'jpg', alt, width, height, eager = false, className
         height={height}
         loading={eager ? 'eager' : 'lazy'}
         decoding="async"
+        draggable="false"
         {...(eager && { fetchPriority: 'high' })}
       />
     </picture>
@@ -273,7 +531,7 @@ function ArchiveImage({ item, sizes = '(max-width: 720px) 100vw, 33vw', eager = 
       height={item.height}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
-      {...(eager && { fetchPriority: 'high' })}
+      draggable="false"
     />
   )
 }
@@ -282,9 +540,9 @@ function ArchiveImage({ item, sizes = '(max-width: 720px) 100vw, 33vw', eager = 
 const archiveItem = ({ work, item }) => lavoriById[work]?.items.find((it) => it.id === item)
 
 /** Collegamento testuale con la sottolineatura sottile: l'unica "azione" del sito. */
-function TextLink({ href, onClick, children, ...props }) {
+function TextLink({ href, onClick, children, className = '', ...props }) {
   return (
-    <a className="text-link" href={href} onClick={onClick} {...props}>
+    <a className={`text-link ${className}`} href={href} onClick={onClick} {...props}>
       {children}
     </a>
   )
@@ -292,9 +550,9 @@ function TextLink({ href, onClick, children, ...props }) {
 
 /* ---------------------------------------------------------------------------
    Intro: tutto nella prima schermata
-   Il nome, le due righe della targa, i recapiti e il carosello dei lavori
+   Il nome, il marchio, le due righe della targa e il carosello dei lavori
    in evidenza. Scorrendo si approfondisce: servizi, archivio, studio,
-   metodo, contatti.
+   incarico, BIM, contatti.
    --------------------------------------------------------------------------- */
 
 const SLIDE_MS = 6500
@@ -307,12 +565,13 @@ function HeroCarousel() {
   const go = useCallback((to) => setIndex(((to % total) + total) % total), [total])
 
   // Avanza da sé; si ferma sotto il puntatore o con il fuoco, e con il
-  // movimento ridotto non si muove affatto.
+  // movimento ridotto non si muove affatto. Il cambio manuale riparte da
+  // capo con il conto alla rovescia.
   useEffect(() => {
     if (paused || prefersReducedMotion()) return
-    const timer = setInterval(() => setIndex((i) => (i + 1) % total), SLIDE_MS)
-    return () => clearInterval(timer)
-  }, [paused, total])
+    const timer = setTimeout(() => setIndex((index + 1) % total), SLIDE_MS)
+    return () => clearTimeout(timer)
+  }, [paused, total, index])
 
   const current = slides[index]
 
@@ -370,6 +629,7 @@ function HeroCarousel() {
       className="hero"
       aria-roledescription="carosello"
       aria-label="Lavori in evidenza"
+      style={{ '--slide-ms': `${SLIDE_MS}ms` }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -387,23 +647,39 @@ function HeroCarousel() {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {slides.map((w, k) => (
-          <RouteLink
-            to={w.path}
-            key={w.id}
-            className={k === index ? 'hero__slide is-active' : 'hero__slide'}
-            aria-hidden={k !== index}
-            tabIndex={k === index ? 0 : -1}
-            aria-label={`${w.title}, ${w.year}: apri la scheda`}
-          >
-            <ArchiveImage item={w.heroCover} sizes="(max-width: 860px) 100vw, 72rem" eager={k < 2} position={w.heroPos} />
-          </RouteLink>
-        ))}
+        <span className="hero__flag label" aria-hidden="true">
+          Lavori in evidenza
+        </span>
+
+        {slides.map((w, k) => {
+          // Il carosello tiene undici fotografie grandi: si caricano per
+          // intero solo quella corrente e le due vicine, le altre restano
+          // sulla miniatura da 480 px. Nessuna attesa quando si cambia.
+          const distance = Math.min(Math.abs(k - index), total - Math.abs(k - index))
+          const cover = distance <= 1 ? w.heroCover : { ...w.heroCover, thumb: w.heroCover.mini }
+          return (
+            <RouteLink
+              to={w.path}
+              key={w.id}
+              className={k === index ? 'hero__slide is-active' : 'hero__slide'}
+              aria-hidden={k !== index}
+              tabIndex={k === index ? 0 : -1}
+              aria-label={`${w.title}, ${w.year}: apri la scheda`}
+            >
+              <ArchiveImage item={cover} sizes="(max-width: 860px) 100vw, 72rem" eager={k === index} position={w.heroPos} />
+            </RouteLink>
+          )
+        })}
+
         {/* l'etichetta che segue il mouse: ←, → o Apri */}
         <span className="hero__cursor" ref={cursorRef} aria-hidden="true">
           <span className="hero__cursor-label">{cursorLabel}</span>
         </span>
-        {/* la barra di avanzamento: un filetto per ogni lavoro */}
+
+        {/* l'avanzamento del lavoro corrente, poi un filetto per ciascuno */}
+        <div className="hero__meter" aria-hidden="true">
+          <span className="hero__meter-fill" key={index} style={{ animationPlayState: paused ? 'paused' : 'running' }} />
+        </div>
         <ol className="hero__dots" role="list">
           {slides.map((w, k) => (
             <li key={w.id}>
@@ -448,34 +724,37 @@ function Intro() {
     <section className="intro" id="top">
       <div className="container">
         <div className="intro__head">
-          <h1 className="masthead">
-            <span className="masthead__pre">Ing.</span>
-            <span className="masthead__name">
-              <Split text="Dario Donelli" now />
-            </span>
-          </h1>
-          <div className="intro__aside">
-            <p className="intro__plate-lines">
-              {studio.plate.map((line) => (
-                <span key={line}>{line}</span>
-              ))}
+          <div className="intro__title">
+            <p className="intro__kicker">
+              <span className="intro__rule" aria-hidden="true" />
+              Studio tecnico · Mantova
             </p>
-            <p className="intro__contacts">
-              <a href={studio.phoneHref}>{studio.phoneDisplay}</a>
-              <a href={studio.emailHref}>{studio.email}</a>
-            </p>
+            <h1 className="masthead">
+              <span className="masthead__pre">Ing.</span>
+              <span className="masthead__name">
+                <Split text="Dario Donelli" now />
+              </span>
+            </h1>
+          </div>
+          <div className="intro__mark" aria-hidden="true">
+            <Logo />
           </div>
         </div>
 
-        <p className="infoline">
-          {/* Il separatore sta nel CSS, legato alla voce: così il "·" non
-              resta mai orfano quando la riga va a capo. */}
-          {infoline.map((item) => (
-            <span className="infoline__item" key={item}>
-              {item}
-            </span>
-          ))}
-        </p>
+        <div className="intro__sub">
+          <p className="infoline">
+            {/* Il separatore sta nel CSS, legato alla voce: così il "·" non
+                resta mai orfano quando la riga va a capo. */}
+            {infoline.map((item) => (
+              <span className="infoline__item" key={item}>
+                {item}
+              </span>
+            ))}
+          </p>
+          <TextLink href="#contatti" onClick={onNav} className="intro__cta">
+            Parliamo del progetto <span aria-hidden="true">↗</span>
+          </TextLink>
+        </div>
 
         <HeroCarousel />
 
@@ -508,10 +787,13 @@ function Intro() {
                 Chi sono
               </TextLink>
               <TextLink href="#metodo" onClick={onNav}>
-                Come lavoro
+                L’incarico
+              </TextLink>
+              <TextLink href="#bim" onClick={onNav}>
+                BIM
               </TextLink>
               <TextLink href="#contatti" onClick={onNav}>
-                Parliamo del progetto
+                Contatti
               </TextLink>
             </p>
           </div>
@@ -533,22 +815,22 @@ function ServicesSection() {
       <div className="container">
         <SectionHead
           id="servizi"
-          title="Tre aree di competenza, un unico interlocutore."
-          text="Lo studio copre il percorso completo di un intervento edilizio. In base alle esigenze si può attivare una singola prestazione oppure affidare l'intera gestione tecnica."
+          title="Un unico interlocutore."
+          text="Lo studio segue il percorso completo di un intervento edilizio, dalla prima valutazione al cantiere. In base alle esigenze si può attivare una singola prestazione oppure affidare l’intera gestione tecnica."
         />
 
-        <div className="service-blocks">
+        <div className="service-cards">
           {serviceAreas.map((area, i) => {
             const item = archiveItem(area.cover)
             const work = lavoriById[area.cover.work]
             return (
-              <article key={area.id} className={`service-block reveal${i % 2 === 1 ? ' service-block--flip' : ''}`}>
+              <article key={area.id} className="service-card reveal" style={{ '--i': i }}>
                 {/* La fotografia è un lavoro vero dell'archivio e porta alla sua scheda. */}
-                <figure className="service-block__media media-reveal">
-                  <RouteLink to={work.path} className="service-block__link" aria-label={`${work.title}: apri la scheda`}>
-                    <ArchiveImage item={item} sizes="(max-width: 860px) 100vw, 36rem" />
+                <figure className="service-card__media">
+                  <RouteLink to={work.path} className="service-card__link" aria-label={`${work.title}: apri la scheda`}>
+                    <ArchiveImage item={item} sizes="(max-width: 860px) 100vw, 24rem" />
                   </RouteLink>
-                  <figcaption className="service-block__caption">
+                  <figcaption className="service-card__caption">
                     <span className="label">Dall’archivio</span>
                     <RouteLink to={work.path}>
                       {work.title}, {work.year}
@@ -556,23 +838,16 @@ function ServicesSection() {
                   </figcaption>
                 </figure>
 
-                <div className="service-block__copy">
-                  <span className="service-block__num" aria-hidden="true">
-                    {area.num}
-                  </span>
-                  <h3 className="service-block__title">{area.title}</h3>
+                <div className="service-card__copy">
+                  <div className="service-card__top">
+                    <span className="service-card__num" aria-hidden="true">
+                      {area.num}
+                    </span>
+                    <h3 className="service-card__title">{area.title}</h3>
+                  </div>
                   <p className="body-text">{area.text}</p>
-
-                  {/* role="list": il reset list-style:none toglie ad alcuni
-                      lettori di schermo la semantica di elenco; così resta. */}
-                  <ul className="service-block__list" role="list">
-                    {area.items.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-
-                  <TextLink href="#contatti" onClick={onNav}>
-                    Parliamo del progetto
+                  <TextLink href="#contatti" onClick={onNav} className="service-card__cta">
+                    Parliamo del progetto <span aria-hidden="true">↗</span>
                   </TextLink>
                 </div>
               </article>
@@ -583,6 +858,7 @@ function ServicesSection() {
         <div className="service-index reveal">
           <div className="service-index__head">
             <span className="label">Tutte le prestazioni</span>
+            <span className="service-index__count">{pad2(serviceIndex.length)} voci</span>
           </div>
           <ol className="index-list" role="list">
             {serviceIndex.map((item, i) => (
@@ -600,14 +876,25 @@ function ServicesSection() {
 
 /* ---------------------------------------------------------------------------
    02 Lavori
-   L'archivio dei lavori dello studio (src/lavori.js): le quattro categorie,
+   L'archivio dei lavori dello studio (src/lavori.js): le tre categorie,
    gli ambiti, poi l'elenco completo che si filtra per categoria. Ogni
-   voce porta alla scheda del lavoro.
+   voce porta alla scheda del lavoro e ha un'ancora (#lavoro-<id>) per
+   tornarci dalla scheda.
    --------------------------------------------------------------------------- */
 
 function Archive() {
+  /* Il primo disegno è uguale a quello del prerender (tutti i lavori): la
+     categoria nell'indirizzo si applica prima del primo fotogramma, così
+     non c'è né un salto a schermo né un disallineamento di idratazione. */
   const [filter, setFilter] = useState('all')
   const list = filter === 'all' ? lavori : lavori.filter((w) => w.category === filter)
+  const activeLabel = categories.find((c) => c.id === filter)?.label
+
+  useIsomorphicLayoutEffect(() => {
+    const next = readFilter()
+    if (next !== 'all') setFilter(next)
+  }, [])
+
   // quanti lavori per categoria, come nell'elenco dello studio («Strutture (11)»)
   const countOf = (id) => lavori.filter((w) => w.category === id).length
 
@@ -626,8 +913,32 @@ function Archive() {
     return () => cancelAnimationFrame(frame)
   }, [filter])
 
+  /* La miniatura che segue il mouse: una sola immagine, spostata scrivendo
+     la trasformazione direttamente nello stile. Compare solo con un mouse
+     vero e con il movimento attivo. */
+  const previewRef = useRef(null)
+  const previewBox = useRef(null)
+  const [preview, setPreview] = useState(null)
+
+  const choose = (id) => {
+    const next = filter === id ? 'all' : id
+    setFilter(next)
+    window.history.replaceState(window.history.state, '', filterUrl(next))
+  }
+
+  const onRowEnter = (work) => {
+    if (prefersReducedMotion()) return
+    setPreview({ src: work.cover.mini, title: work.title, meta: `${work.categoryLabel} · ${work.year}` })
+  }
+
+  const onPointerMove = (event) => {
+    if (event.pointerType !== 'mouse' || !previewRef.current || !previewBox.current) return
+    const r = previewBox.current.getBoundingClientRect()
+    previewRef.current.style.transform = `translate3d(${event.clientX - r.left}px, ${event.clientY - r.top}px, 0)`
+  }
+
   return (
-    <div className="archive">
+    <div className={`archive${preview ? ' is-previewing' : ''}`} ref={previewBox}>
       <dl className="categories reveal">
         {categories.map((c) => (
           <div className="categories__item" key={c.id}>
@@ -648,21 +959,39 @@ function Archive() {
         ))}
       </p>
 
-      {/* Il filtro: bottoni per semantica, collegamenti testuali per aspetto. */}
+      {/* Il filtro: bottoni per semantica, collegamenti testuali per aspetto.
+          La categoria attiva si richiude cliccandola di nuovo. */}
       <div className="archive__filter reveal" role="group" aria-label="Filtra per categoria">
-        <button type="button" className="filter-link" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
-          Tutti <span className="filter-link__n">{lavori.length}</span>
-        </button>
         {categories.map((c) => (
-          <button type="button" key={c.id} className="filter-link" aria-pressed={filter === c.id} onClick={() => setFilter(c.id)}>
+          <button type="button" key={c.id} className="filter-link" aria-pressed={filter === c.id} onClick={() => choose(c.id)}>
             {c.label} <span className="filter-link__n">{countOf(c.id)}</span>
           </button>
         ))}
+        <span className="archive__count" aria-live="polite">
+          {pad2(list.length)} {list.length === 1 ? 'lavoro' : 'lavori'}
+          {activeLabel && (
+            <button type="button" className="archive__reset" onClick={() => choose(filter)}>
+              {activeLabel} · mostra tutti
+            </button>
+          )}
+        </span>
       </div>
 
-      <ol className="archive-list" role="list" aria-live="polite" ref={listRef}>
+      <div className="archive__preview" ref={previewRef} aria-hidden="true">
+        {preview && (
+          <figure className="archive__preview-card">
+            <img src={preview.src} alt="" width="320" height="240" loading="lazy" decoding="async" />
+            <figcaption>
+              <span>{preview.title}</span>
+              <span className="label">{preview.meta}</span>
+            </figcaption>
+          </figure>
+        )}
+      </div>
+
+      <ol className="archive-list" role="list" ref={listRef} onPointerMove={onPointerMove} onPointerLeave={() => setPreview(null)}>
         {list.map((w, i) => (
-          <li key={w.id} className="archive-row reveal" style={{ '--i': i % 6 }}>
+          <li key={w.id} id={`lavoro-${w.id}`} className="archive-row reveal" style={{ '--i': i % 6 }} onPointerEnter={() => onRowEnter(w)}>
             <RouteLink to={w.path} className="archive-row__link">
               <span className="archive-row__year">{w.year}</span>
               <span className="archive-row__figure">
@@ -674,6 +1003,9 @@ function Archive() {
               </span>
               <span className="archive-row__cat">{w.categoryLabel}</span>
               <span className="archive-row__place">{w.place || ''}</span>
+              <span className="archive-row__go" aria-hidden="true">
+                ↗
+              </span>
             </RouteLink>
           </li>
         ))}
@@ -686,11 +1018,7 @@ function LavoriSection() {
   return (
     <section className="section section--surface" id="lavori">
       <div className="container">
-        <SectionHead
-          id="lavori"
-          title="I lavori dello studio, dal 2010 a oggi."
-          text="Strutture in cemento armato e acciaio, case ristrutturate con il prima e il dopo, vasche e magazzini per l’agricoltura, depositi e scale per l’industria. Ogni lavoro ha una scheda con le tavole originali e le fotografie, da sfogliare e ingrandire."
-        />
+        <SectionHead id="lavori" title="I lavori dello studio." />
         <Archive />
       </div>
     </section>
@@ -705,7 +1033,7 @@ function StudioSection() {
   return (
     <section className="section" id="studio">
       <div className="container">
-        <SectionHead id="studio" title="Un riferimento tecnico diretto." />
+        <SectionHead id="studio" title="Un unico riferimento dal progetto al cantiere." />
 
         <div className="studio-layout">
           <aside className="studio__rail">
@@ -736,10 +1064,7 @@ function StudioSection() {
           </aside>
 
           <div className="studio__main">
-            <p className="studio__intro reveal">
-              Dietro allo studio c’è una persona sola: chi valuta il progetto è la stessa che poi
-              segue il cantiere.
-            </p>
+            <p className="studio__intro reveal">Unico interlocutore dalle valutazioni preliminari alle esecuzioni in cantiere.</p>
 
             <div className="studio__bio">
               {profile.bio.map((paragraph) => (
@@ -762,6 +1087,34 @@ function StudioSection() {
                 <dd>{studio.address}</dd>
               </div>
             </dl>
+
+            {/* Le collaborazioni: solo i nomi presenti in content.js. */}
+            <section className="collab reveal" aria-labelledby="collab-title">
+              <div className="collab__head">
+                <span className="label">Collaborazioni</span>
+                <h3 id="collab-title" className="collab__title">
+                  Con chi lavoro
+                </h3>
+              </div>
+              <p className="body-text">{collaborators.text}</p>
+              <dl className="collab__list">
+                <div className="collab__row">
+                  <dt className="label">Collaboratori</dt>
+                  <dd>
+                    {collaborators.technicians.map((person) => (
+                      <span key={person.name}>
+                        {person.name}
+                        <span className="collab__role">{person.role}</span>
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+                <div className="collab__row">
+                  <dt className="label">Imprese</dt>
+                  <dd className="collab__empty">{collaborators.companies.length ? collaborators.companies.join(' · ') : collaborators.note}</dd>
+                </div>
+              </dl>
+            </section>
           </div>
         </div>
       </div>
@@ -778,8 +1131,8 @@ function StudioSection() {
           <figcaption className="studio-photo__caption">
             <span className="label">La sede</span>
             <span>
-              Via Filippo Turati 1, Rivalta sul Mincio — alle porte del Parco del Mincio, attività in
-              tutta la provincia di Mantova.
+              Via Filippo Turati 1, Rivalta sul Mincio — alle porte del Parco del Mincio, attività in tutta la provincia di
+              Mantova.
             </span>
           </figcaption>
         </figure>
@@ -789,18 +1142,14 @@ function StudioSection() {
 }
 
 /* ---------------------------------------------------------------------------
-   04 Metodo
+   04 L'incarico
    --------------------------------------------------------------------------- */
 
 function MethodSection() {
   return (
     <section className="section section--surface" id="metodo">
       <div className="container">
-        <SectionHead
-          id="metodo"
-          title="Come si sviluppa un incarico."
-          text="Quattro fasi, con un punto di verifica alla fine di ciascuna: si procede alla successiva solo quando il quadro è chiaro."
-        />
+        <SectionHead id="metodo" title="L’incarico." />
         <ol className="method reveal" role="list">
           {method.map((step) => (
             <li key={step.num} className="method__step">
@@ -818,12 +1167,131 @@ function MethodSection() {
 }
 
 /* ---------------------------------------------------------------------------
-   05 Contatti
+   05 BIM
+   Un disegno tecnico che si traccia da sé quando entra nello schermo:
+   assonometria di un edificio a tre piani. Nessuna promessa: la sezione
+   dichiara che il percorso è in preparazione.
    --------------------------------------------------------------------------- */
+
+function BimDrawing() {
+  const levels = [0, 55, 110, 165]
+  const plane = (d) => `M260 ${460 - d} 470 ${340 - d} 260 ${220 - d} 50 ${340 - d}Z`
+
+  return (
+    <svg className="bim-drawing" viewBox="0 0 520 500" fill="none" aria-hidden="true">
+      {/* Il piano di campagna: un solo segno, appena percettibile. */}
+      <path className="bim-drawing__base" d={plane(0)} stroke="currentColor" strokeWidth="0.8" />
+
+      <g className="bim-drawing__ink" stroke="currentColor" strokeLinecap="square">
+        {/* Tre impalcati e la copertura. */}
+        {[55, 110, 165].map((d, i) => (
+          <path
+            key={`piano-${d}`}
+            className="bim-drawing__line"
+            pathLength="1"
+            d={plane(d)}
+            style={{ '--d': i * 0.1 }}
+            fill={i === 2 ? 'currentColor' : 'none'}
+            fillOpacity={i === 2 ? 0.045 : undefined}
+          />
+        ))}
+
+        {/* I pilastri d'angolo: i tre in vista, quello dietro tratteggiato. */}
+        {[
+          `M260 460V295`,
+          `M470 340V175`,
+          `M50 340V175`,
+        ].map((d, i) => (
+          <path key={d} className="bim-drawing__line" pathLength="1" d={d} style={{ '--d': 0.3 + i * 0.08 }} />
+        ))}
+        <path className="bim-drawing__ghost" d="M260 220V55" />
+
+        {/* Le quote di piano, sul fianco sinistro. */}
+        <g className="bim-drawing__quotes" strokeWidth="0.8">
+          {levels.map((d) => (
+            <path key={`quota-${d}`} d={`M36 ${340 - d}H50`} />
+          ))}
+          <path d="M36 340V175" />
+        </g>
+      </g>
+
+      <g className="bim-drawing__points" fill="currentColor">
+        {[
+          [50, 340],
+          [260, 460],
+          [470, 340],
+          [260, 220],
+        ].map(([x, y]) => (
+          <circle key={`${x}-${y}`} cx={x} cy={y} r="1.8" />
+        ))}
+      </g>
+    </svg>
+  )
+}
+
+function BimSection() {
+  return (
+    <section className="section" id="bim">
+      <div className="container">
+        <SectionHead id="bim" title={bim.title} text={bim.text} badge={bim.status} />
+
+        <div className="bim">
+          <div className="bim__drawing reveal">
+            <span className="bim__drawing-label label">Assonometria · modello coordinato</span>
+            <BimDrawing />
+          </div>
+          <ol className="bim__points" role="list">
+            {bim.points.map((point, i) => (
+              <li key={point.title} className="bim__point reveal" style={{ '--i': i }}>
+                <span className="bim__point-num">{pad2(i + 1)}</span>
+                <h3 className="bim__point-title">{point.title}</h3>
+                <p className="bim__point-text">{point.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ---------------------------------------------------------------------------
+   06 Contatti
+   --------------------------------------------------------------------------- */
+
+function MapCard() {
+  const [loaded, setLoaded] = useState(false)
+
+  return (
+    <div className={`map${loaded ? ' is-loaded' : ''}`}>
+      {loaded ? (
+        <iframe
+          className="map__frame"
+          src={mapEmbedSrc}
+          title="Mappa della posizione dello studio a Rivalta sul Mincio"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      ) : (
+        <button type="button" className="map__placeholder" onClick={() => setLoaded(true)} aria-label="Mostra la mappa di Google Maps">
+          <span className="map__grid" aria-hidden="true" />
+          <span className="map__pin" aria-hidden="true">
+            <span className="map__pin-dot" />
+          </span>
+          <span className="map__hint">
+            <span className="label">Mappa</span>
+            <span className="map__hint-title">Mostra la mappa</span>
+            <span className="map__hint-note">Google Maps si carica solo ora, su richiesta</span>
+          </span>
+        </button>
+      )}
+    </div>
+  )
+}
 
 function ContactSection() {
   return (
-    <section className="section" id="contatti">
+    <section className="section section--surface" id="contatti">
       <div className="container">
         <SectionHead
           id="contatti"
@@ -842,36 +1310,42 @@ function ContactSection() {
             </li>
             <li className="contact-item">
               <span className="label">Email</span>
-              <a className="contact-item__value contact-item__value--break" href={studio.emailHref}>
-                {studio.email}
-              </a>
+              <MailLink
+                user={studio.emailUser}
+                domain={studio.emailDomain}
+                className="contact-item__value contact-item__value--break"
+                label="Scrivi allo studio"
+              />
               <span className="contact-item__note">Descriva l&rsquo;immobile e cosa ha in mente</span>
+            </li>
+            <li className="contact-item">
+              <span className="label">PEC</span>
+              <MailLink
+                user={studio.pecUser}
+                domain={studio.pecDomain}
+                className="contact-item__value contact-item__value--break"
+                label="Scrivi alla PEC dello studio"
+              />
+              <span className="contact-item__note">Per le comunicazioni ufficiali</span>
             </li>
             <li className="contact-item">
               <span className="label">Studio</span>
               <span className="contact-item__value">
-                Via Filippo Turati, 1<br />
-                46040 Rivalta sul Mincio (MN)
+                {studio.addressLines[0]}
+                <br />
+                {studio.addressLines[1]}
               </span>
               <span className="contact-item__note">All&rsquo;angolo tra via Turati e vicolo Zibramonda</span>
             </li>
           </ul>
 
           <div className="contact__map-col reveal">
-            {/* La carta è virata in bianco e nero dal CSS: resta una mappa
-                leggibile, senza colori che stonano con la pagina. */}
-            <div className="map">
-              <iframe
-                className="map__frame"
-                src={mapEmbedSrc}
-                title="Mappa della posizione dello studio a Rivalta sul Mincio"
-                loading="lazy"
-              />
-            </div>
+            <MapCard />
             <p className="map__links">
-              <TextLink href={studio.mapsHref} target="_blank" rel="noreferrer">
+              <TextLink href={studio.mapsHref} target="_blank" rel="noopener noreferrer">
                 Itinerario su Google Maps
               </TextLink>
+              <span className="map__note">La mappa si carica da Google solo su richiesta.</span>
             </p>
           </div>
         </div>
@@ -899,8 +1373,8 @@ function Footer() {
             <h2 className="label">Studio</h2>
             <ul role="list">
               <li className="footer__name">{studio.name}</li>
-              <li>Via Filippo Turati 1</li>
-              <li>46040 Rivalta sul Mincio (MN)</li>
+              <li>{studio.addressLines[0]}</li>
+              <li>{studio.addressLines[1]}</li>
             </ul>
           </div>
 
@@ -911,12 +1385,14 @@ function Footer() {
                 <a href={studio.phoneHref}>{studio.phoneDisplay}</a>
               </li>
               <li>
-                <a className="footer__break" href={studio.emailHref}>
-                  {studio.email}
-                </a>
+                <MailLink user={studio.emailUser} domain={studio.emailDomain} className="footer__break" label="Scrivi allo studio" />
               </li>
               <li>
-                <a href={studio.mapsHref} target="_blank" rel="noreferrer">
+                <MailLink user={studio.pecUser} domain={studio.pecDomain} className="footer__break" label="Scrivi alla PEC dello studio" />
+                <span className="footer__kind">PEC</span>
+              </li>
+              <li>
+                <a href={studio.mapsHref} target="_blank" rel="noopener noreferrer">
                   Itinerario
                 </a>
               </li>
@@ -927,9 +1403,23 @@ function Footer() {
             <h2 className="label">Iscrizione</h2>
             <ul role="list">
               <li>Ordine degli Ingegneri di Mantova</li>
-              <li>n. 1495 · dal 24 maggio 2010</li>
+              <li>n. 1495 · 24 maggio 2010</li>
               <li>Settore a) civile e ambientale</li>
             </ul>
+            <dl className="footer__fiscal">
+              <div>
+                <dt>P. IVA</dt>
+                <dd>{studio.vat}</dd>
+              </div>
+              <div>
+                <dt>C.F.</dt>
+                <dd>{studio.taxCode}</dd>
+              </div>
+              <div>
+                <dt>SDI</dt>
+                <dd>{studio.sdi}</dd>
+              </div>
+            </dl>
           </div>
 
           <div className="footer__col">
@@ -950,13 +1440,16 @@ function Footer() {
           <span>
             © {year} <span className="footer__meta-name">{studio.name}</span>
           </span>
-          <span className="footer__meta-wide">Privacy e cookie policy in preparazione</span>
+          <span className="footer__meta-wide">Nessun cookie prima della mappa. La mappa si carica solo su richiesta.</span>
           <span>
             Sito{' '}
-            <a href="https://www.albertopecchini.it" target="_blank" rel="noreferrer">
+            <a href="https://www.albertopecchini.it" target="_blank" rel="noopener noreferrer">
               Alberto Pecchini
             </a>
           </span>
+          <button type="button" className="footer__top" onClick={backToTop}>
+            Torna su <span aria-hidden="true">↑</span>
+          </button>
         </div>
       </div>
     </footer>
@@ -971,6 +1464,35 @@ function Footer() {
    In fondo, il lavoro precedente e il successivo nell'archivio.
    --------------------------------------------------------------------------- */
 
+function WorkBack({ work }) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      frame = 0
+      setVisible(window.scrollY > 900)
+    }
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update)
+    }
+    update()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  return (
+    <div className={`work-back${visible ? ' is-visible' : ''}`}>
+      <RouteLink to="/" hash={`lavoro-${work.id}`} className="work-back__link">
+        <span aria-hidden="true">←</span> Tutti i lavori
+      </RouteLink>
+    </div>
+  )
+}
+
 function WorkPage({ work }) {
   const { prev, next } = neighbours(work.id)
   const rows = [
@@ -980,19 +1502,21 @@ function WorkPage({ work }) {
     work.place && ['Luogo', work.place],
     ['Prestazione', work.role],
   ].filter(Boolean)
+  const archiveLink = { to: '/', hash: `lavoro-${work.id}` }
 
   return (
     <article className="work">
       <header className="work__head">
         <div className="container">
           <p className="work__crumbs label">
-            <RouteLink to="/" hash="lavori">
-              Lavori
-            </RouteLink>
+            <RouteLink {...archiveLink}>Lavori</RouteLink>
             <span aria-hidden="true">/</span>
             <span>{work.categoryLabel}</span>
             <span aria-hidden="true">/</span>
             <span>{work.year}</span>
+          </p>
+          <p className="work__no label">
+            Scheda {pad2(work.index)} / {pad2(lavori.length)}
           </p>
           <h1 className="work__title">
             <Split text={work.title} now />
@@ -1037,7 +1561,8 @@ function WorkPage({ work }) {
               {work.counts.pages > 0 ? 'Le tavole originali e le fotografie, da sfogliare qui.' : 'Le fotografie, da sfogliare qui.'}
             </h2>
             <p className="body-text">
-              {work.counts.pages > 0 && 'Le tavole sono i PDF così come sono stati stampati, con i dati personali del cartiglio oscurati: si ingrandiscono fino al singolo ferro e alla singola quota. '}
+              {work.counts.pages > 0 &&
+                'Le tavole sono i PDF così come sono stati stampati, con i dati personali del cartiglio oscurati: si ingrandiscono fino al singolo ferro e alla singola quota. '}
               Le fotografie si ingrandiscono allo stesso modo. Ctrl e rotella o due dita per avvicinarsi, frecce per cambiare file.
             </p>
           </div>
@@ -1053,7 +1578,7 @@ function WorkPage({ work }) {
           ) : (
             <span />
           )}
-          <RouteLink to="/" hash="lavori" className="work__nav-all text-link">
+          <RouteLink {...archiveLink} className="work__nav-all text-link">
             Tutti i lavori
           </RouteLink>
           {next ? (
@@ -1066,19 +1591,19 @@ function WorkPage({ work }) {
           )}
         </nav>
       </div>
+
+      <WorkBack work={work} />
     </article>
   )
 }
 
-function MissingPage({ path }) {
+function MissingPage() {
   return (
     <section className="work work--missing">
       <div className="container">
         <p className="label">Pagina non trovata</p>
         <h1 className="work__title">Qui non c’è nulla.</h1>
-        <p className="lead">
-          L’indirizzo <code>{path}</code> non corrisponde a nessuna pagina del sito.
-        </p>
+        <p className="lead">L’indirizzo non corrisponde a nessuna pagina del sito.</p>
         <p className="work__missing-links">
           <RouteLink to="/" className="text-link">
             Torna all’inizio
@@ -1096,13 +1621,6 @@ function MissingPage({ path }) {
    Composizione
    --------------------------------------------------------------------------- */
 
-const legacyPaths = {
-  '/servizi': 'servizi',
-  '/progetti': 'lavori',
-  '/studio': 'studio',
-  '/contatti': 'contatti',
-}
-
 const legacyHashes = { progetti: 'lavori', territorio: 'lavori', ambiti: 'lavori' }
 
 function Home() {
@@ -1113,6 +1631,7 @@ function Home() {
       <LavoriSection />
       <StudioSection />
       <MethodSection />
+      <BimSection />
       <ContactSection />
     </>
   )
@@ -1121,22 +1640,33 @@ function Home() {
 function Layout({ url }) {
   const [path, setPath] = useState(() => resolve(url).path)
   const pendingHash = useRef(null)
-  const page = resolve(path)
+  const pendingScroll = useRef(null)
+  const page = useMemo(() => resolve(path), [path])
 
   useSmoothScroll()
   useReveal(path)
 
-  const navigate = useCallback((to, hash = null) => {
+  const navigate = useCallback((to, hash = null, { search = '' } = {}) => {
     const target = resolve(to).path
+    // La voce che si lascia ricorda dove si era: il tasto indietro la riapre lì.
+    window.history.replaceState({ ...(window.history.state || {}), scrollY: window.scrollY }, '')
     pendingHash.current = hash
-    window.history.pushState(null, '', hash ? `${target}#${hash}` : target)
+    pendingScroll.current = null
+    const query = search ? `?${search}` : ''
+    const url = `${target}${query}${hash ? `#${hash}` : ''}`
+    window.history.pushState({ path: target, hash, scrollY: 0 }, '', url)
     setPath(target)
   }, [])
 
-  // Il tasto indietro: la pagina torna quella dell'indirizzo.
+  // Il tasto indietro: la pagina torna quella dell'indirizzo, alla quota
+  // in cui la si era lasciata.
   useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
     const onPop = () => {
-      pendingHash.current = window.location.hash.slice(1) || null
+      const state = window.history.state
+      const hash = window.location.hash.slice(1) || null
+      pendingHash.current = state?.hash || hash
+      pendingScroll.current = typeof state?.scrollY === 'number' ? state.scrollY : null
       setPath(resolve(window.location.pathname).path)
     }
     window.addEventListener('popstate', onPop)
@@ -1149,31 +1679,44 @@ function Layout({ url }) {
     const legacy = legacyPaths[window.location.pathname.replace(/\/$/, '')]
     const hash = window.location.hash.slice(1)
     const target = legacy || legacyHashes[hash] || hash
-    if (legacy) window.history.replaceState(null, '', `/#${legacy}`)
+    if (legacy) window.history.replaceState(window.history.state, '', `/#${legacy}`)
     if (!target) return
     const frame = window.requestAnimationFrame(() => {
       if (document.getElementById(target)) scrollToTarget(target, { immediate: true })
     })
-    return () => window.cancelAnimationFrame(frame)
+    // Le immagini hanno le misure, ma i font possono spostare le righe:
+    // un secondo passaggio a pagina caricata tiene l'ancora al posto giusto.
+    const onLoad = () => {
+      if (document.getElementById(target)) scrollToTarget(target, { immediate: true })
+    }
+    window.addEventListener('load', onLoad, { once: true })
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('load', onLoad)
+    }
   }, [])
 
-  // A ogni cambio di pagina: titolo della scheda del browser e posizione.
-  // Si va in cima, o alla sezione chiesta (dal footer di una scheda).
+  // A ogni cambio di pagina: titolo e metadati, posizione, fuoco sul
+  // contenuto. Il primo arrivo è già sistemato dal browser.
   const first = useRef(true)
   useEffect(() => {
-    document.title = page.title
+    applyPageMeta(page)
     if (first.current) {
       first.current = false
       return
     }
+    const y = pendingScroll.current
     const hash = pendingHash.current
+    pendingScroll.current = null
     pendingHash.current = null
     const frame = window.requestAnimationFrame(() => {
-      if (hash && document.getElementById(hash)) scrollToTarget(hash, { immediate: true })
+      if (typeof y === 'number' && y > 0) scrollToTarget(y, { immediate: true })
+      else if (hash && document.getElementById(hash)) scrollToTarget(hash, { immediate: true })
       else scrollToTarget(0, { immediate: true })
+      document.getElementById('contenuto')?.focus({ preventScroll: true })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [path, page.title])
+  }, [path, page])
 
   return (
     <RouterContext.Provider value={{ path, navigate }}>
@@ -1183,8 +1726,10 @@ function Layout({ url }) {
 
       <Header />
 
-      <main className="site-main" id="contenuto">
-        {page.kind === 'work' ? <WorkPage work={page.work} key={page.work.id} /> : page.kind === 'missing' ? <MissingPage path={page.path} /> : <Home key="home" />}
+      <main className="site-main" id="contenuto" tabIndex={-1}>
+        <div className="site-page" key={page.path}>
+          {page.kind === 'work' ? <WorkPage work={page.work} /> : page.kind === 'missing' ? <MissingPage /> : <Home />}
+        </div>
       </main>
 
       <Footer />

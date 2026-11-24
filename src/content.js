@@ -9,11 +9,10 @@
 
 /**
  * Indirizzo pubblico del sito, senza barra finale: alimenta i tag di
- * condivisione, i canonical e la sitemap generati dal prerender. Quando
- * arriverà il dominio definitivo si cambia qui (e in index.html, che vale
- * in sviluppo).
+ * condivisione, i canonical e la sitemap generati dal prerender. Il dominio
+ * si cambia qui: index.html lo riceve da Vite (vedi vite.config.js).
  */
-export const siteUrl = 'https://dariodonelli.vercel.app'
+export const siteUrl = 'https://dariodonelli.com'
 
 export const studio = {
   /* Sulla pagina il nome compare sempre in maiuscolo, come sulla targa:
@@ -23,10 +22,19 @@ export const studio = {
   name: 'Ing. Dario Donelli',
   role: 'Ingegnere',
   address: 'Via Filippo Turati, 1, 46040 Rivalta sul Mincio MN',
+  addressLines: ['Via Filippo Turati, 1', '46040 Rivalta sul Mincio (MN)'],
   phoneHref: 'tel:+393384007913',
   phoneDisplay: '+39 338 400 7913',
-  email: 'ing.dario.donelli@hotmail.it',
-  emailHref: 'mailto:ing.dario.donelli@hotmail.it',
+  emailUser: 'info',
+  emailDomain: 'dariodonelli.com',
+  pec: 'dario.donelli@ingpec.eu',
+  pecUser: 'dario.donelli',
+  pecDomain: 'ingpec.eu',
+  pecHref: 'mailto:dario.donelli@ingpec.eu',
+  /* Dati fiscali: compaiono nel piè di pagina, come in un'intestazione. */
+  vat: 'IT 02311150201',
+  taxCode: 'DNLDRA79D17B110L',
+  sdi: 'M5UXCR1',
   /* Si punta alle coordinate e non all'indirizzo: la ricerca testuale su
      Rivalta sul Mincio non porta sempre al civico giusto. */
   mapsHref: 'https://www.google.com/maps/search/?api=1&query=45.180182%2C10.677598',
@@ -38,11 +46,10 @@ export const studio = {
 
 /**
  * Sorgente del riquadro cartografico dei contatti: Google Maps, come
- * chiesto dallo studio. È l'embed pubblico senza chiave API, centrato sulle
- * coordinate dello studio con lo zoom sulla via; il CSS lo vira in bianco
- * e nero, così niente colori che stonano con la pagina.
- * Nota: l'embed di Google può installare cookie di terze parti; quando
- * arriverà la cookie policy va citato lì.
+ * chiesto dallo studio. Non viene caricato all'apertura della pagina: il
+ * riquadro mostra prima un segnaposto e la mappa arriva solo su richiesta,
+ * così nessun servizio terzo vede l'indirizzo IP di chi legge e la pagina
+ * resta leggera. Il CSS la vira in bianco e nero.
  */
 export const mapEmbedSrc = (() => {
   const { lat, lng } = studio.geo
@@ -51,50 +58,48 @@ export const mapEmbedSrc = (() => {
 
 /**
  * Profilo professionale. I dati provengono dall'iscrizione all'albo:
- * laurea in Ingegneria Edile-Architettura (Bologna, 2008), abilitazione
- * 2009, iscrizione all'Ordine di Mantova n. 1495 dal 24/05/2010,
- * settore a) civile e ambientale.
+ * iscrizione all'Ordine di Mantova n. 1495 dal 24/05/2010, settore a)
+ * civile e ambientale. La formazione è raccontata senza date di laurea,
+ * come chiesto dallo studio.
  */
 export const profile = {
   bio: [
-    'Mi sono laureato in Ingegneria Edile-Architettura all’Università di Bologna nel 2008, ho conseguito l’abilitazione alla professione l’anno successivo e dal 2010 sono iscritto all’Ordine degli Ingegneri della Provincia di Mantova, settore civile e ambientale.',
-    'È una formazione che unisce due sguardi che spesso restano separati: quello dell’architettura, attento allo spazio e a come viene vissuto, e quello dell’ingegneria, che deve rispondere della struttura e dei numeri. Progetto tenendoli insieme, perché un intervento riuscito è quello in cui la soluzione tecnica e l’uso quotidiano dell’edificio non si contraddicono.',
+    'La formazione acquisita unisce due sguardi che spesso restano separati: quello dell’architettura, attento allo spazio e a come viene vissuto, e quello dell’ingegneria, che deve rispondere della struttura e dei numeri. Progetto tenendoli insieme, perché un intervento riuscito è quello in cui la soluzione tecnica e l’uso quotidiano dell’edificio non si contraddicono.',
     'Lavoro come libero professionista sul territorio mantovano, con studio a Rivalta sul Mincio. Seguo personalmente ogni incarico dalla prima valutazione fino alla chiusura del cantiere: chi mi affida un lavoro parla sempre con la stessa persona, senza passaggi intermedi.',
     'Questo significa progettazione integrale e coordinata: architettura, strutture, impianti, prevenzione incendi, sicurezza in cantiere ed energia non sono pratiche separate da mettere in fila, ma discipline che vengono tenute insieme fin dall’inizio. È il modo più efficace per evitare che un problema emerga quando è ormai costoso risolverlo.',
   ],
   /** Scheda sintetica accanto alla biografia. */
   credentials: [
-    { label: 'Titolo', value: 'Ingegneria Edile-Architettura' },
-    { label: 'Ateneo', value: 'Università di Bologna, 2008' },
-    { label: 'Abilitazione', value: 'Bologna, 2009' },
     { label: 'Ordine', value: 'Ingegneri di Mantova, n. 1495' },
     { label: 'Iscritto dal', value: '24 maggio 2010' },
     { label: 'Settore', value: 'a) Civile e ambientale' },
+    { label: 'P. IVA', value: studio.vat },
   ],
 }
 
 /**
  * Sezioni della pagina. Il sito è una pagina sola: ogni voce punta a una
  * sezione tramite ancora; l'elenco alimenta i numeri delle intestazioni e
- * i collegamenti del footer.
+ * i collegamenti dell'header e del footer.
  */
 export const sections = [
   { id: 'servizi', num: '01', label: 'Servizi' },
   { id: 'lavori', num: '02', label: 'Lavori' },
-  { id: 'studio', num: '03', label: 'Lo Studio' },
-  { id: 'metodo', num: '04', label: 'Metodo' },
-  { id: 'contatti', num: '05', label: 'Contatti' },
+  { id: 'studio', num: '03', label: 'Studio' },
+  { id: 'metodo', num: '04', label: 'L’incarico' },
+  { id: 'bim', num: '05', label: 'BIM' },
+  { id: 'contatti', num: '06', label: 'Contatti' },
 ]
 
 /**
- * Riga informativa sotto la testata. L'anno è quello corrente: la riga
- * si legge come la data di una tavola, non come una scadenza.
+ * Riga informativa sotto la testata: le due righe della targa, in una
+ * sola riga. Prende il posto della località e dell'anno, che restano nei
+ * contatti e nel piè di pagina.
  */
-export const infoline = ['Rivalta sul Mincio', 'MN', String(new Date().getFullYear()), 'Ordine Ingegneri n. 1495']
+export const infoline = ['Ingegneria', 'Architettura', 'Ambiente', 'Progettazione integrale e coordinata']
 
 /**
- * Tre macro-aree. Ognuna spiega cosa comprende, a chi serve e che problema
- * risolve, con un elenco delle prestazioni effettivamente offerte.
+ * Tre aree di lavoro. Ognuna spiega cosa comprende e a chi serve.
  * L'immagine è un file dell'archivio dei lavori (src/lavori.js): il lavoro
  * e la voce (una fotografia o una pagina di tavola) che la rappresenta.
  */
@@ -103,58 +108,41 @@ export const serviceAreas = [
     id: 'progettazione',
     num: '01',
     cover: { work: 'casa-parolini', item: 'rendering' },
-    title: 'Progettazione e pratiche edilizie',
-    text: 'Dalla prima verifica di fattibilità fino al progetto esecutivo e alle autorizzazioni. Utile a chi deve costruire, ampliare o ristrutturare e ha bisogno di capire in anticipo cosa è possibile fare, con quali costi e con quali tempi.',
-    items: [
-      'Studi di fattibilità',
-      'Progettazione preliminare, definitiva ed esecutiva',
-      'Rendering e fotoinserimenti',
-      'Pratiche catastali',
-      'Pratiche antincendio',
-    ],
+    title: 'Progettazione architettonica',
+    text: 'Dagli studi di fattibilità alle pratiche edilizie: un unico percorso per costruire, ampliare o ristrutturare, con il progetto seguito fino al cantiere.',
   },
   {
     id: 'strutture',
     num: '02',
     cover: { work: 'vasca-salizzole', item: '22122010151' },
-    title: 'Strutture e sicurezza sismica',
-    text: 'Verifica e adeguamento di edifici esistenti, progettazione strutturale di nuove opere. Risponde a chi possiede un immobile datato e vuole sapere come si comporta in caso di sisma, o deve intervenire su un edificio vincolato.',
-    items: [
-      'Valutazione della sicurezza sismica',
-      'Miglioramento e adeguamento sismico',
-      'Riabilitazione strutturale e restauro',
-      'Strutture antisismiche',
-    ],
+    title: 'Strutture',
+    text: 'Verifica e adeguamento di edifici esistenti, progettazione strutturale di nuove opere. Un approccio che parte dalla conoscenza dell’edificio e arriva al dettaglio esecutivo.',
   },
   {
     id: 'cantiere',
     num: '03',
-    cover: { work: 'passerella-volta-mantovana', item: 'img-20200312-133215' },
-    title: 'Direzione lavori e consulenza',
-    text: 'Presidio del cantiere e verifica di quanto viene realizzato rispetto al progetto. Serve a chi vuole un riferimento tecnico unico che segua l’intervento, controlli le lavorazioni e gestisca il rapporto con le imprese.',
-    items: [
-      'Direzione lavori e direzione operativa',
-      'Coordinamento della sicurezza',
-      'Riqualificazione e certificazione energetica',
-      'Perizie, stime e consulenze tecniche',
-    ],
+    cover: { work: 'passeggiata-desenzano', item: 'img-20210709-222548' },
+    title: 'Direzione lavori',
+    text: 'Presidio del cantiere e verifica di quanto viene realizzato rispetto al progetto, con un riferimento tecnico unico per committente e imprese.',
   },
 ]
 
-/** Elenco completo delle prestazioni. */
+/**
+ * Elenco completo delle prestazioni, nell'ordine indicato dallo studio nel
+ * documento di revisione: restano le voci segnate, cadono rendering,
+ * sicurezza, antincendio e la categoria Industria.
+ */
 export const serviceIndex = [
   'Studi di fattibilità e progettazione preliminare',
-  'Rendering e fotoinserimenti',
   'Progettazione definitiva',
   'Progettazione esecutiva',
-  'Miglioramento e adeguamento sismico di edifici esistenti',
-  'Riqualificazione e certificazione energetica',
+  'Progettazione strutturale e sismica',
+  'Riqualificazione energetica',
   'Direzione lavori',
-  'Direzione operativa',
-  'Sicurezza',
-  'Pratiche antincendio',
+  'Direzione tecnica di cantiere',
   'Pratiche catastali',
-  'Perizie, stime e consulenze tecniche',
+  'Perizie e stime',
+  'Consulenze tecniche',
 ]
 
 /**
@@ -172,7 +160,7 @@ export const ambiti = [
   'Restauro e risanamento conservativo',
 ]
 
-/** Le quattro fasi del metodo di lavoro. */
+/** Le quattro fasi dell'incarico. */
 export const method = [
   {
     num: '01',
@@ -196,14 +184,35 @@ export const method = [
   },
 ]
 
-export const disciplines = [
-  'Progettazione architettonica e strutturale',
-  'Valutazione della sicurezza sismica',
-  'Riabilitazione strutturale e restauro',
-  'Strutture antisismiche',
-  'Energia',
-  'Impianti',
-  'Urbanistica',
-  'Infrastrutture',
-  'Idraulica e ambiente',
-]
+/**
+ * Le discipline dello studio: sono le stesse prestazioni dell'elenco
+ * completo, così la colonna dello Studio non racconta un'offerta diversa
+ * da quella dei Servizi.
+ */
+export const disciplines = serviceIndex
+
+/**
+ * Il BIM è un percorso appena avviato: la sezione lo dice con onestà,
+ * senza presentarlo come un servizio già strutturato.
+ */
+export const bim = {
+  status: 'In preparazione',
+  title: 'Il progetto in un modello unico.',
+  text: 'Lo studio sta strutturando il passaggio al Building Information Modeling: un modello condiviso in cui architettura, strutture e cantiere parlano la stessa lingua. Il percorso è in corso e sarà raccontato qui, con i primi lavori sviluppati in questa modalità.',
+  points: [
+    { title: 'Modello coordinato', text: 'Architettura e strutture nello stesso modello, con le interferenze viste prima del cantiere.' },
+    { title: 'Documentazione dal modello', text: 'Piante, sezioni e computi coerenti tra loro, aggiornati in un punto solo.' },
+    { title: 'Cantiere più leggibile', text: 'Dati e geometrie condivisi con imprese e tecnici, per ridurre le interpretazioni.' },
+  ],
+}
+
+/**
+ * Collaborazioni. Le imprese e le persone che lavorano con lo studio si
+ * aggiungono qui: la sezione mostra solo ciò che è scritto in questi elenchi.
+ */
+export const collaborators = {
+  text: 'A seconda dell’incarico, il progetto si avvale di professionisti e imprese scelti di volta in volta. Le collaborazioni stabili sono raccolte qui.',
+  technicians: [{ name: 'Giuliana', role: 'Collaboratrice interna' }],
+  companies: [],
+  note: 'Imprese selezionate di volta in volta.',
+}
