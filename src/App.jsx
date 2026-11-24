@@ -23,18 +23,33 @@ import { resolve, legacyPaths } from './routes.js'
 
 /* ---------------------------------------------------------------------------
    Marchio
-   La "D" della targa ridisegnata in vettoriale: una sola linea continua e
-   chiusa, con l'angolo retto a sinistra e la curva a destra. Niente ombre,
-   niente doppio profilo: il segno resta leggibile a ogni misura.
-   Vive nella testata della pagina, non nell'header: lì il nome basta.
+   Il logo della targa: la "D" nera a doppio profilo e, dietro, la sua
+   immagine speculare in grigio, con le gradazioni della lastra. Il tratto
+   nero si disegna all'apertura della pagina; a disegno finito la linea è
+   chiusa. Vive nella testata, non nell'header: lì il nome basta.
    --------------------------------------------------------------------------- */
 
 const LOGO_D = 'M120 120H520A400 400 0 0 1 520 920H120Z'
+const LOGO_D_COUNTER = 'M200 200H520A320 320 0 0 1 520 840H200Z'
+/* Speculare, spostata a destra: il quadrato esce appena dalla D nera, la
+   curva resta dentro il controprofilo. */
+const LOGO_GHOST = 'M940 160H580A360 360 0 0 0 580 880H940Z'
 
 function Logo({ className = '', ...props }) {
   return (
     <svg viewBox="0 0 1040 1040" fill="none" aria-hidden="true" className={`logo ${className}`} {...props}>
-      <path d={LOGO_D} stroke="currentColor" strokeWidth="56" strokeLinejoin="miter" />
+      <defs>
+        <linearGradient id="logo-gray" gradientUnits="userSpaceOnUse" x1="220" y1="520" x2="940" y2="520">
+          <stop offset="0" stopColor="#565656" />
+          <stop offset="0.5" stopColor="#747474" />
+          <stop offset="1" stopColor="#909090" />
+        </linearGradient>
+      </defs>
+      <path className="logo__ghost" d={LOGO_GHOST} stroke="url(#logo-gray)" strokeWidth="44" />
+      <g stroke="currentColor" strokeWidth="44" strokeLinejoin="miter">
+        <path className="logo__line" pathLength="1" d={LOGO_D} />
+        <path className="logo__line logo__line--late" pathLength="1" d={LOGO_D_COUNTER} />
+      </g>
     </svg>
   )
 }
