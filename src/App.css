@@ -1137,71 +1137,9 @@ html.js .service-card.reveal {
 
 /* --- BIM --------------------------------------------------------------------- */
 
-.bim {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: clamp(2rem, 5vw, 4rem);
-  align-items: start;
-}
-
-.bim__drawing {
-  position: relative;
-  display: flex;
-  min-height: 26rem;
-  padding: clamp(1.25rem, 3vw, 2rem);
-  border: 1px solid var(--line);
-  background: var(--surface);
-  overflow: hidden;
-}
-
-.bim__drawing::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 55% 45%, transparent 0 35%, var(--surface) 82%);
-  pointer-events: none;
-}
-
-.bim-drawing {
-  width: 100%;
-  height: auto;
-  margin: auto;
-  color: var(--ink-soft);
-}
-
-.bim-drawing__base {
-  color: var(--line-strong);
-  opacity: 0.7;
-}
-
-.bim-drawing__line {
-  stroke-width: 1.15;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  transition: stroke-dashoffset 1.7s var(--ease-out);
-  transition-delay: calc(var(--d, 0) * 0.9s);
-}
-
-.bim__drawing.is-visible .bim-drawing__line {
-  stroke-dashoffset: 0;
-}
-
-.bim-drawing__ghost {
-  opacity: 0.45;
-  stroke-dasharray: 4 5;
-  stroke-width: 0.9;
-}
-
-.bim-drawing__quotes {
-  color: var(--muted);
-  opacity: 0.6;
-}
-
-.bim-drawing__points circle {
-  opacity: 0.7;
-}
-
 .bim__points {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid var(--line-strong);
 }
 
@@ -1209,8 +1147,20 @@ html.js .service-card.reveal {
   display: grid;
   grid-template-columns: 2.6rem minmax(0, 1fr);
   gap: 0.25rem 0.9rem;
-  padding: 1.15rem 0;
+  padding: 1.4rem clamp(1.1rem, 2.5vw, 2.25rem) 1.6rem;
   border-bottom: 1px solid var(--line);
+}
+
+.bim__point:first-child {
+  padding-left: 0;
+}
+
+.bim__point:last-child {
+  padding-right: 0;
+}
+
+.bim__point + .bim__point {
+  border-left: 1px solid var(--line);
 }
 
 html.js .bim__point.reveal {
@@ -1239,19 +1189,18 @@ html.js .bim__point.reveal {
 }
 
 @media (max-width: 860px) {
-  .bim {
+  .bim__points {
     grid-template-columns: 1fr;
   }
 
-  .bim__drawing {
-    min-height: 20rem;
+  .bim__point,
+  .bim__point:first-child,
+  .bim__point:last-child {
+    padding-inline: 0;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .bim-drawing__line {
-    transition: none;
-    stroke-dashoffset: 0;
+  .bim__point + .bim__point {
+    border-left: 0;
   }
 }
 

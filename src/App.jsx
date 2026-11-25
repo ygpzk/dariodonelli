@@ -1137,66 +1137,9 @@ function MethodSection() {
 
 /* ---------------------------------------------------------------------------
    05 BIM
-   Un disegno tecnico che si traccia da sé quando entra nello schermo:
-   assonometria di un edificio a tre piani. Nessuna promessa: la sezione
-   dichiara che il percorso è in preparazione.
+   Il percorso è appena avviato: la sezione lo dichiara e racconta i tre
+   passaggi, senza disegni né promesse.
    --------------------------------------------------------------------------- */
-
-function BimDrawing() {
-  const levels = [0, 55, 110, 165]
-  const plane = (d) => `M260 ${460 - d} 470 ${340 - d} 260 ${220 - d} 50 ${340 - d}Z`
-
-  return (
-    <svg className="bim-drawing" viewBox="0 0 520 500" fill="none" aria-hidden="true">
-      {/* Il piano di campagna: un solo segno, appena percettibile. */}
-      <path className="bim-drawing__base" d={plane(0)} stroke="currentColor" strokeWidth="0.8" />
-
-      <g className="bim-drawing__ink" stroke="currentColor" strokeLinecap="square">
-        {/* Tre impalcati e la copertura. */}
-        {[55, 110, 165].map((d, i) => (
-          <path
-            key={`piano-${d}`}
-            className="bim-drawing__line"
-            pathLength="1"
-            d={plane(d)}
-            style={{ '--d': i * 0.1 }}
-            fill={i === 2 ? 'currentColor' : 'none'}
-            fillOpacity={i === 2 ? 0.045 : undefined}
-          />
-        ))}
-
-        {/* I pilastri d'angolo: i tre in vista, quello dietro tratteggiato. */}
-        {[
-          `M260 460V295`,
-          `M470 340V175`,
-          `M50 340V175`,
-        ].map((d, i) => (
-          <path key={d} className="bim-drawing__line" pathLength="1" d={d} style={{ '--d': 0.3 + i * 0.08 }} />
-        ))}
-        <path className="bim-drawing__ghost" d="M260 220V55" />
-
-        {/* Le quote di piano, sul fianco sinistro. */}
-        <g className="bim-drawing__quotes" strokeWidth="0.8">
-          {levels.map((d) => (
-            <path key={`quota-${d}`} d={`M36 ${340 - d}H50`} />
-          ))}
-          <path d="M36 340V175" />
-        </g>
-      </g>
-
-      <g className="bim-drawing__points" fill="currentColor">
-        {[
-          [50, 340],
-          [260, 460],
-          [470, 340],
-          [260, 220],
-        ].map(([x, y]) => (
-          <circle key={`${x}-${y}`} cx={x} cy={y} r="1.8" />
-        ))}
-      </g>
-    </svg>
-  )
-}
 
 function BimSection() {
   return (
@@ -1204,20 +1147,15 @@ function BimSection() {
       <div className="container">
         <SectionHead id="bim" title={bim.title} text={bim.text} badge={bim.status} />
 
-        <div className="bim">
-          <div className="bim__drawing reveal">
-            <BimDrawing />
-          </div>
-          <ol className="bim__points" role="list">
-            {bim.points.map((point, i) => (
-              <li key={point.title} className="bim__point reveal" style={{ '--i': i }}>
-                <span className="bim__point-num">{pad2(i + 1)}</span>
-                <h3 className="bim__point-title">{point.title}</h3>
-                <p className="bim__point-text">{point.text}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <ol className="bim__points" role="list">
+          {bim.points.map((point, i) => (
+            <li key={point.title} className="bim__point reveal" style={{ '--i': i }}>
+              <span className="bim__point-num">{pad2(i + 1)}</span>
+              <h3 className="bim__point-title">{point.title}</h3>
+              <p className="bim__point-text">{point.text}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   )
