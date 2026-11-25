@@ -28,8 +28,11 @@ import { resolve, legacyPaths } from './routes.js'
    testata della pagina, non nell'header: lì il nome basta.
    --------------------------------------------------------------------------- */
 
-const LOGO_OUTER = 'M64 64H520A456 456 0 0 1 520 976H64Z'
-const LOGO_INNER = 'M164 164H520A356 356 0 0 1 520 876H164Z'
+/* Il tracciato parte e finisce a metà del lato sinistro, su un tratto
+   dritto: il punto di aggancio dell'animazione non cade su un angolo e la
+   linea, a disegno finito, resta continua. */
+const LOGO_OUTER = 'M64 520V64H520A456 456 0 0 1 520 976H64V520Z'
+const LOGO_INNER = 'M164 520V164H520A356 356 0 0 1 520 876H164V520Z'
 
 function Logo({ className = '', ...props }) {
   return (
