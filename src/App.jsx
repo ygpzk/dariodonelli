@@ -23,32 +23,24 @@ import { resolve, legacyPaths } from './routes.js'
 
 /* ---------------------------------------------------------------------------
    Marchio
-   Il logo della targa: la "D" nera a doppio profilo e, dietro, la sua
-   immagine speculare in grigio, con le gradazioni della lastra. Il tratto
-   nero si disegna all'apertura della pagina; a disegno finito la linea è
-   chiusa. Vive nella testata, non nell'header: lì il nome basta.
+   Il logo della targa ridisegnato in vettoriale: una "D" a doppio profilo,
+   in nero, sovrapposta alla sua immagine speculare in grigio. Vive nella
+   testata della pagina, non nell'header: lì il nome basta.
    --------------------------------------------------------------------------- */
 
-const LOGO_D = 'M120 120H520A400 400 0 0 1 520 920H120Z'
-const LOGO_D_COUNTER = 'M200 200H520A320 320 0 0 1 520 840H200Z'
-/* Speculare, spostata a destra: il quadrato esce appena dalla D nera, la
-   curva resta dentro il controprofilo. */
-const LOGO_GHOST = 'M940 160H580A360 360 0 0 0 580 880H940Z'
+const LOGO_OUTER = 'M64 64H520A456 456 0 0 1 520 976H64Z'
+const LOGO_INNER = 'M164 164H520A356 356 0 0 1 520 876H164Z'
 
 function Logo({ className = '', ...props }) {
   return (
     <svg viewBox="0 0 1040 1040" fill="none" aria-hidden="true" className={`logo ${className}`} {...props}>
-      <defs>
-        <linearGradient id="logo-gray" gradientUnits="userSpaceOnUse" x1="220" y1="520" x2="940" y2="520">
-          <stop offset="0" stopColor="#565656" />
-          <stop offset="0.5" stopColor="#747474" />
-          <stop offset="1" stopColor="#909090" />
-        </linearGradient>
-      </defs>
-      <path className="logo__ghost" d={LOGO_GHOST} stroke="url(#logo-gray)" strokeWidth="44" />
-      <g stroke="currentColor" strokeWidth="44" strokeLinejoin="miter">
-        <path className="logo__line" pathLength="1" d={LOGO_D} />
-        <path className="logo__line logo__line--late" pathLength="1" d={LOGO_D_COUNTER} />
+      <g className="logo__ghost" stroke="#b9b9b9" strokeWidth="48" transform="matrix(-1 0 0 1 1040 0)">
+        <path d={LOGO_OUTER} />
+        <path d={LOGO_INNER} />
+      </g>
+      <g className="logo__ink" stroke="currentColor" strokeWidth="48">
+        <path className="logo__line" pathLength="1" d={LOGO_OUTER} />
+        <path className="logo__line logo__line--late" pathLength="1" d={LOGO_INNER} />
       </g>
     </svg>
   )
@@ -1211,7 +1203,6 @@ function BimSection() {
 
         <div className="bim">
           <div className="bim__drawing reveal">
-            <span className="bim__drawing-label label">Assonometria · modello coordinato</span>
             <BimDrawing />
           </div>
           <ol className="bim__points" role="list">
